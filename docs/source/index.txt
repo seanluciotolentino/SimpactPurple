@@ -1,0 +1,23 @@
+SimpactPurple's Documentation
+=========================================
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+   
+   intro
+   tutorial
+   community
+   operators
+   gridqueue
+   agent
+   graphs
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

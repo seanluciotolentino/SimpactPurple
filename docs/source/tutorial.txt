@@ -1,0 +1,49 @@
+Tutorial
+=========================================
+
+SimpactPurple is a work in progress. This tutorial will walk a user through running a SimpactPurple simulation, changing some features, and generating some output.
+
+Run a Simulation
+-----------------------------
+
+Create a community with default settings and run the simulation:
+
+>>> import Community 
+>>> s = Community.Community()
+>>> s.run()
+
+We can visualize the result with the GraphsAndData_ module:
+
+.. _GraphsAndData: graphs.html
+
+>>> import GraphsAndData
+>>> GraphsAndData.age_mixing_graph(s)
+>>> GraphsAndData.sexual_network_graph(s)
+
+Or investigate agents and relationships ourselves:
+
+>>> some_agents = s.agents.values()[0:10]  # agents are stored in a dictionary, so need to use values method
+>>> some_agents
+[<Agent.Agent instance at 0x00000000081377C8>, <Agent.Agent instance at 0x0000000008137808>, <Agent.Agent instance at 0x0000000008137848>, <Agent.Agent instance at 0x0000000008137888>, <Agent.Agent instance at 0x00000000081378C8>, <Agent.Agent instance at 0x0000000008137908>, <Agent.Agent instance at 0x0000000008137948>, <Agent.Agent instance at 0x0000000008137988>, <Agent.Agent instance at 0x00000000081379C8>, <Agent.Agent instance at 0x0000000008137A08>]
+>>> some_agents[0].attributes  # access attributes of a particular agent
+{'TIME_ADDED': 0, 'NAME': 0, 'TIME_REMOVED': inf}
+>>> some_relationships = s.relationships[0:10]  # all relationships stored in a list
+>>> some_relationships
+[(<Agent.Agent instance at 0x0000000008137B88>, <Agent.Agent instance at 0x00000000081377C8>, 0, 16), (<Agent.Agent instance at 0x0000000008137F08>, <Agent.Agent instance at 0x00000000081377C8>, 0, 18), (<Agent.Agent instance at 0x0000000008138608>, <Agent.Agent instance at 0x0000000008137F48>, 0, 17), (<Agent.Agent instance at 0x0000000008137908>, <Agent.Agent instance at 0x0000000008137E88>, 0, 17), (<Agent.Agent instance at 0x0000000008137948>, <Agent.Agent instance at 0x00000000081386C8>, 0, 10), (<Agent.Agent instance at 0x0000000008137BC8>, <Agent.Agent instance at 0x0000000008137848>, 0, 18), (<Agent.Agent instance at 0x0000000008137988>, <Agent.Agent instance at 0x0000000008138048>, 0, 17), (<Agent.Agent instance at 0x0000000008137A08>, <Agent.Agent instance at 0x0000000008137AC8>, 1, 14), (<Agent.Agent instance at 0x0000000008138D08>, <Agent.Agent instance at 0x0000000008137B48>, 1, 15), (<Agent.Agent instance at 0x0000000008137EC8>, <Agent.Agent instance at 0x0000000008138808>, 1, 18)]
+>>> some_relationships[0]  # a relationship is stored as a tuple (agent1, agent2, start, end)
+(<Agent.Agent instance at 0x0000000008137B88>, <Agent.Agent instance at 0x00000000081377C8>, 0, 16)
+
+We can change some of the default values, including initial population and number of years to simulate:
+
+>>> s = Community.Community()
+>>> s.INITIAL_POPULATION = 100
+>>> s.NUMBER_OF_YEARS = 30
+>>> s.run()
+
+More Advanced Use
+-----------------------------
+Currently changing the make-up of the initial population or the hazard of forming a relationship requires changing the source code in Community.py_. Future releases will make this easier, but is not possible at this point.
+
+If, for example, the user wants to change the degree distribution, she would need to change the function for *dnp* in the make_population method.
+
+.. _Community.py: community.html

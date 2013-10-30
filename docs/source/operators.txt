@@ -1,0 +1,22 @@
+Operators
+=======================
+
+.. automodule:: Operators
+   
+Relationship Operator
+-----------------------
+   
+.. autoclass:: Operators.RelationshipOperator
+   :members: 
+
+Time Operator
+-----------------------
+   
+.. autoclass:: Operators.TimeOperator
+   :members: 
+   
+Infection Operator
+-----------------------
+   
+.. autoclass:: Operators.InfectionOperator
+   :members: 
