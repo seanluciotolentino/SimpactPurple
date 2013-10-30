@@ -1,11 +1,17 @@
+"""
+Class for holding the basic elements of an Agent.
+"""
+
 import math
 import numpy as np
 #import interval as np # when you don't have numpy
 
 class Agent():
     def __init__(self, attributes):
-        #all these variables are set in the make_population. Initialized here
-        #as None to emphasis their existence
+        """
+        all these variables are set in the make_population. Initialized here
+        as None to emphasis their existence
+        """
         self.born = None
         self.gender = None
         self.dnp = None

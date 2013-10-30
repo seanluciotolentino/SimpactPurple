@@ -3,6 +3,10 @@
 Created on Thu Oct 17 11:14:39 2013
 
 @author: Lucio
+
+Object which overlooks the communication of several communities run in 
+parallel.
+
 """
 
 import Agent

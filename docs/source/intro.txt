@@ -5,7 +5,7 @@ SimpactPurple is a parallelized (hence purple) agent-based model for simulating 
 
 Download and Install
 -----------------------
-To download, grab the package from the PyPi site: https://pypi.python.org/pypi/SimpactPurple/.  After unpacking, navigate to the unpacked folder and run::
+To download, grab the package from our github repository: https://github.com/seanluciotolentino/SimpactPurple/.  After unpacking, navigate to the unpacked folder and run::
 
 	python setup.py install 
 

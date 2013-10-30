@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 def age_mixing_graph(s, filename = None):
     """
     Generates a scatter plot of male and female ages for each relationship
-    formed.
+    formed. If *filename* is provided (string), the graph is saved to the 
+    file instead of displayed on the screen.
     """
     males = []
     females = []
@@ -52,7 +53,9 @@ def age_mixing_graph(s, filename = None):
 def age_mixing_heat_graph(s, grid = 10, filename = None):
     """
     Generates a heat map of male and female ages for each relationship
-    formed.
+    formed. Finer or coarser grain grid can be made by changing *grid*.
+    If *filename* is provided (string), the graph is saved to the 
+    file instead of displayed on the screen.
     """
     boxes = np.zeros((grid, grid))
     maximum = s.MAX_AGE + 1
@@ -96,7 +99,7 @@ def age_mixing_heat_graph(s, grid = 10, filename = None):
 def formation_hazard():
     """
     Generates an age mixing scatter for many relationships with random
-    ages for partners colored by the hazard of formation
+    ages for partners colored by the hazard of formation.
     """
     #some graph parameters
     pop = 2000
@@ -146,7 +149,7 @@ def formation_hazard():
 
 def formed_relations_data(s):
     """
-    Returns a list of the number of relationships at every timestep
+    Returns a list of the number of relationships at every timestep.
     """
     num_weeks = min(s.time, int(math.ceil(52 * s.NUMBER_OF_YEARS)))
     relations = [0] * num_weeks
@@ -160,7 +163,9 @@ def formed_relations_data(s):
 
 def formed_relations_graph(s, filename = None):
     """
-    Generates a plot of the number of relationships over time
+    Generates a plot of the number of relationships over time. If *filename* 
+    is provided (string), the graph is saved to the file instead of displayed
+    on the screen.
     """
     num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
     relations = formed_relations_data(s)
@@ -180,7 +185,7 @@ def formed_relations_graph(s, filename = None):
 
 def infection_data(s):
     """
-    Returns a list with total number of infections at every timestep.
+    Returns a list with total number of infections at every timestep. 
     """
     num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
     counts = [0]*num_weeks
@@ -218,7 +223,9 @@ def prevalence_data(s):
 
 def prevalence_graph(s, filename = None):
     """
-    Generates a graph of prevalence over time
+    Generates a graph of prevalence over time. If *filename* is provided 
+    (string), the graph is saved to the file instead of displayed on the 
+    screen.
     """
     num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
     prev = prevalence_data(s)
@@ -240,7 +247,10 @@ def prevalence_graph(s, filename = None):
 def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
     """
     Returns a list of lists, with the first dimension being time, the second
-    dimension being age groups.
+    dimension being age groups. User is able to specify *time_granularity*, 
+    i.e. how often to sample,
+    *box_size*, the size of age boxes, *num_boxes*, the number of age boxes to
+    use.
     """
     data = []
     now = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS))) #determine if we are at the end of the simulation or in the middle
@@ -269,7 +279,8 @@ def demographics_graph(s,time_granularity = 4,num_boxes = 7,box_size = 10, filen
     Generates a graph of the demographic make-up of the population over time. 
     User is able to specify *time_granularity*, i.e. how often to sample,
     *box_size*, the size of age boxes, *num_boxes*, the number of age boxes to
-    use.    
+    use. If *filename* is provided (string), the graph is saved to the 
+    file instead of displayed on the screen.
     """
     num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
     demographics = demographics_data(s,time_granularity,num_boxes,box_size)
@@ -304,8 +315,11 @@ def demographics_graph(s,time_granularity = 4,num_boxes = 7,box_size = 10, filen
 
 def sexual_network_graph(s, layout = "spring", time = None, filename = None):
     """
-    Generates the cumulative sexual network graph. If *time* is provided, the 
-    sexual network at that time will be drawn. 
+    Generates the cumulative sexual network graph. *layout* specifies the way
+    that the agents should be arranged ('spring','circular','bipartite')
+    If *time* is provided, the sexual network at that time will be drawn. If
+    *filename* is provided (string), the graph is saved to the file instead 
+    of displayed on the screen.
     """
     #rebuild the graph for visualization
     G = nx.Graph()
