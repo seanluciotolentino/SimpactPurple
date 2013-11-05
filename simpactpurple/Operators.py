@@ -18,7 +18,7 @@ class RelationshipOperator():
 
        1. Dissolve relationships that have exceeded their duration
        2. Recruit from the grid queues into the main queue
-       3. Iterate through main queue, attempting to match each suitor
+       3. Iterate through main queue, attempting to match each suitor   `
           at the top of the queue.    
     """
 
@@ -58,11 +58,11 @@ class RelationshipOperator():
             if(network.get_edge_data(r[0], r[1])["duration"] < 0):
                 self.dissolve_relationship(r[0], r[1])
         
-        #0. Update the clock of the GridQueues (processes AND originals)
-        pipes = self.pipes.values()
-        for pipe in pipes:
-            pipe.send("time")
-            pipe.send(self.master.time)
+#        #0. Update the clock of the GridQueues (processes AND originals)
+#        pipes = self.pipes.values()
+#        for pipe in pipes:
+#            pipe.send("time")
+#            pipe.send(self.master.time)
         
         #1. Recruit
         self.match_returns = {i:[] for i in range(len(self.grid_queues))}  # DEBUG RESET
@@ -182,8 +182,18 @@ class RelationshipOperator():
         self.master.network.remove_edge(agent1, agent2)
         
         #add agents into appropriate grid queues
+        #print "==> dissolution:",agent1.attributes["NAME"], agent2.attributes["NAME"]
+        #print "   grid queues before:",agent1.grid_queue, agent2.grid_queue
+        agent1.attributes["dissolution_gq_change_before"] = agent1.grid_queue
+        agent2.attributes["dissolution_gq_change_before"] = agent2.grid_queue
         self.update_grid_queue_for(agent1)
         self.update_grid_queue_for(agent2)
+        #print "   grid queues after:",agent1.grid_queue, agent2.grid_queue
+        agent1.attributes["dissolution_gq_change_after"] = agent1.grid_queue
+        agent2.attributes["dissolution_gq_change_after"] = agent2.grid_queue
+        
+        agent1.attributes["dissolution_gq_change_time"] = self.master.time
+        agent2.attributes["dissolution_gq_change_time"] = self.master.time
 
     def duration(self, agent1, agent2):
         """
@@ -199,14 +209,21 @@ class RelationshipOperator():
         """
         Find the appropriate grid queue for agent. Called by 
            1. Time Operator - when agent graduates to the next grid queue
+           1.5 Time Operator - when relationship with removed is dissolved
            2. Relationship Operator - a relationship is dissolved
            3. Simpact - in make_population in the mainloop
         """
         try:
             grid_queue = [gq for gq in self.grid_queues if gq.accepts(agent)][agent.gender]
+
+            #remove from previous grid_queue if necessary
+#            if agent.grid_queue is not grid_queue.my_index and agent.grid_queue is not None:
+#                self.pipes[agent.grid_queue].send("remove")
+#                self.pipes[agent.grid_queue].send(agent.attributes["NAME"])            
+            
             agent.grid_queue = grid_queue.my_index
-            self.pipes[grid_queue.my_index].send("add")
-            self.pipes[grid_queue.my_index].send(agent)
+            self.pipes[agent.grid_queue].send("add")
+            self.pipes[agent.grid_queue].send(agent)
         except IndexError:
             print "---ERROR---"
             print "agent:",agent,"age:",self.master.age(agent)
@@ -229,7 +246,13 @@ class TimeOperator():
         """
         #sync grid_queue clocks
         for gq in self.master.relationship_operator.grid_queues:  # kinda hacky
-            gq.time = self.master.time        
+            gq.time = self.master.time
+            
+        #0. Update the clock of the GridQueues (processes AND originals)
+        pipes = self.master.relationship_operator.pipes.values()
+        for pipe in pipes:
+            pipe.send("time")
+            pipe.send(self.master.time)
         
         #Increment ages of agents, move their queue if necessary
         agents = self.master.network.nodes()
@@ -246,15 +269,13 @@ class TimeOperator():
                 relations = self.master.network.edges(agent)
                 for r in relations:
                     other = [r[0],r[1]][r[0]==agent]
+                    other_gq = self.master.relationship_operator.grid_queues[other.grid_queue]
                     self.master.network.remove_edge(r[0], r[1])
-                    if self.master.age(other) >= self.master.MAX_AGE: 
-                        continue  # going to be removed later
+                    if self.master.age(other) >= self.master.MAX_AGE or not other_gq.accepts(other): 
+                        continue  # going to be updated later
                     self.master.relationship_operator.update_grid_queue_for(other)
                     
                 #remove from grid queues
-                #if agent_pipe.recv():  # remove if still in GQ
-                #    pass  
-                #    #print "  --> removing from GQ too"
                 agent_pipe.send("remove")  # send remove irregardless
                 agent_pipe.send(agent_name) 
                 agent.grid_queue = None
@@ -272,7 +293,15 @@ class TimeOperator():
                 #print "send remove for agent",agent_name,"gq",gq.my_index
                 agent_pipe.send("remove")
                 agent_pipe.send(agent_name) 
+                #print "==> gq update:",agent.attributes["NAME"]
+                #print "   grid queue before:",agent.grid_queue
+                agent.attributes["update_gq_change_before"] = agent.grid_queue
                 self.master.relationship_operator.update_grid_queue_for(agent)
+                #print "   grid queue after:",agent.grid_queue
+                agent.attributes["update_gq_change_after"] = agent.grid_queue
+                agent.attributes["update_gq_change_time"] = self.master.time
+            else:
+                agent.attributes["update_gq_NOT_CHANGED_time"] = self.master.time
 
 class InfectionOperator():
     """

@@ -1,6 +1,8 @@
 SimpactPurple's Documentation
 =========================================
 
+This is the documentation for SimpactPurple, an agent-based model for simulating HIV. It was developed by Lucio Tolentino as part of his dissertation. Documentation includes a short tutorial on how to use the program as well as a description of various functions and scripts. 
+
 Contents:
 
 .. toctree::
@@ -13,6 +15,7 @@ Contents:
    gridqueue
    agent
    graphs
+   cluster
 
 Indices and tables
 ==================

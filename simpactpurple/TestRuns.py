@@ -21,8 +21,8 @@ if __name__ == '__main__':
 #    GraphsAndData.age_mixing_graph(s)
 #    GraphsAndData.sexual_network_graph(s)
 
-    GraphsAndData.prevalence_graph(s,filename='graph1.png')
-    GraphsAndData.formed_relations_graph(s,filename='graph2.png')
-    GraphsAndData.age_mixing_graph(s,filename='graph3.png')
-    GraphsAndData.demographics_graph(s,filename='graph4.png')    
-    GraphsAndData.sexual_network_graph(s,filename='graph5.png')
+#    GraphsAndData.prevalence_graph(s,filename='graph1.png')
+#    GraphsAndData.formed_relations_graph(s,filename='graph2.png')
+#    GraphsAndData.age_mixing_graph(s,filename='graph3.png')
+#    GraphsAndData.demographics_graph(s,filename='graph4.png')    
+#    GraphsAndData.sexual_network_graph(s,filename='graph5.png')

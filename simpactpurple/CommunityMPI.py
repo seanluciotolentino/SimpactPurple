@@ -1,21 +1,14 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 15 11:13:09 2013
-
-@author: Lucio
-
-A Community object (inherits from Community) that has the additional ability to
-communicate via MPI with a MainSimulator.
-
-"""
 import Community
 
 class CommunityMPI(Community.Community):
+    """
+    This particular Community object knows how to communicate with a Global 
+    object via OpenMPI and run parallel to other CommunityMPI objects
+    """
     
     def __init__(self, comm, Global):
         Community.Community.__init__(self)
         self.comm = comm
-        self.Global = Global
         self.num_relationships = 0  # for indexing during updates
         
         #MODEL PARAMETERS
@@ -37,72 +30,68 @@ class CommunityMPI(Community.Community):
         self.INFECTIVITY = Global.INFECTIVITY
         self.INTIIAL_PREVALENCE = 0  # global does initial seeding
         self.SEED_TIME = 0  
-                
-    def start(self):
-        """
-        In addition to setting up simulation structures, the community needs
-        to listen for agent adds from comm.
-        """
-        #initialize data structures
-        Community.Community.start(self)
             
     def run(self):
-        self.start()    
+        """
+        Initialize data structures and begin the mainloop of the modified 
+        Community: Each step receive updates from global, perform a step, then
+        reply to Global with new changes to the system (new agents, 
+        relationships, and infections).
+        """
+        self.start()
         self.time = 0
+        end_of_simulation = int(self.NUMBER_OF_YEARS*52)-1
         while True:
-            #print rank,"in loop, time is",time
-            self.update()
+            self.update()  # updates self.time
             self.step()
             self.reply()
-            if self.time >= (int(self.NUMBER_OF_YEARS*52)-1):  # need a more sophisticated breaking system methinks
+            if self.time >= end_of_simulation:
                 break
             
-            #print rank,"time updated to",time
         self.cleanup()
         
-    def step(self):
-        print "====Community",self.comm.Get_rank(),"time",self.time,"===="
-        self.debug()
-        self.assertions()
-        Community.Community.step(self)
-        
-    def add(self,agent):
-        #if self.time > 1:
-        #    print "    adding",agent, "age",self.age(agent)
-        Community.Community.add(self,agent)
-        
     def update(self):
+        """
+        Receive updates from the global manager and react accordingly (add new
+        agents, delete rejected relationships, etc.).
+        """
+        #handshake
         msg = self.comm.recv(source = 0)
         if msg != "update_start":
-                raise Exception, "Didn't receive update_start from Global. Received: " + str(msg)
+            raise Exception, "Didn't receive update_start from Global. Received: " + str(msg)
                 
-        #print self.comm.Get_rank(),"updating..."
         #1. New agents (from deaths)
-        agent = self.comm.recv(source = 0)
-        #print "  1. adding agents..."
-        while agent != 'start':
+        new_agents = self.comm.recv(source = 0)
+        for agent in new_agents:
             self.add(agent)
-            agent= self.comm.recv(source = 0)
         
-        #2. Rejected Relationships
+        #2. Relationships
+        #2.1 Rejected Relationships
         rejected_relationships = self.comm.recv(source = 0)  # list of bad rela
-        #print "  2. rejected relations:",[(a1.attributes["NAME"], a2.attributes["NAME"]) for a1,a2,start,stop in rejected_relationships]
         for r in rejected_relationships:
             a1, a2, start, stop = r
             agent1 = self.agents[a1.attributes["NAME"]]
             agent2 = self.agents[a2.attributes["NAME"]]
             self.relationship_operator.dissolve_relationship(agent1, agent2)
             self.relationships.remove((agent1,agent2,start,stop))
-            
-            #print "  ",a1.attributes["NAME"],a2.attributes["NAME"],"rejected",\
-            #    "| new relationships:",[(r[0].attributes["NAME"],r[1].attributes["NAME"]) for r in self.relationships]
         self.num_relationships = len(self.relationships)
+        
+        #2.2 Relations formed for shared agents
+        forming_agents = self.comm.recv(source = 0)
+        for name in forming_agents:
+            agent = self.agents[name]
+            agent.dnp -= 1
+
+        #2.3 Relations dissolved for shared agents
+        dissolving_agents = self.comm.recv(source = 0)
+        for name in dissolving_agents:
+            agent = self.agents[name]
+            agent.dnp += 1
         
         #3. New infections
         new_infections = self.comm.recv(source = 0)  # list of bad rela
-        #print "  3. new_infections:",[a.attributes["NAME"] for a in new_infections]
-        for a in new_infections:
-            agent = self.agents[a.attributes["NAME"]]
+        for name in new_infections:
+            agent = self.agents[name]
             agent.time_of_infection=self.time
             
         #4. Get new time
@@ -110,25 +99,29 @@ class CommunityMPI(Community.Community):
         
         msg = self.comm.recv(source = 0)
         if msg != "update_end":
-                raise Exception, "Didn't receive update_end from Global. Received: " + str(msg)
+            raise Exception, "Didn't receive update_end from Global. Received: " + str(msg)
         
     def reply(self):
+        """
+        Send reply to Global with information about events of this past round 
+        (agent deaths, new relationships, etc.).
+        """
         self.comm.send("reply_start", dest = 0)
-        #print self.comm.Get_rank(),"reply... (time =",self.time,")"
         
-        #1. Send agent death
+        #1. Send agent deaths
         agent_deaths = [a for a in self.agents.values() if a.attributes["TIME_REMOVED"]==self.time]  # 1st pass solution
-        #print "  1. agent deaths:",[a.attributes["NAME"] for a in agent_deaths]
         self.comm.send(agent_deaths, dest = 0)
         
-        #2. Send new relationships
+        #2.1 Formed relationships
         new_relationships = self.relationships[self.num_relationships:]
-        #print "  2. new_relationships:",[(a1.attributes["NAME"], a2.attributes["NAME"]) for a1,a2,start,stop in new_relationships]
         self.comm.send(new_relationships, dest = 0)
+        
+        #2.2 Dissolved relationships
+        old_relationships = [r for r in self.relationships if r[3] == self.time]
+        self.comm.send(old_relationships, dest = 0)
         
         #3. Send agent deaths
         new_infections = [a for a in self.agents.values() if a.time_of_infection==self.time]  # 1st pass solution
-        #print "  3. new_infections:",[a.attributes["NAME"] for a in new_infections]
         self.comm.send(new_infections, dest = 0)
         
         self.comm.send("reply_end", dest = 0)
@@ -136,9 +129,9 @@ class CommunityMPI(Community.Community):
     def make_population(self,size, born=None, gender=None, dnp=None):
         """
         Overwrite Community *make_population* method so nothings happens at
-		initialization.  This is desirable because the Global object is making
-		the population. If size == 1 then the time operator is trying to
-		replace an agent. 
+        initialization.  This is desirable because the Global object is making
+        the population. If size == 1 then the time operator is trying to
+        replace an agent. 
         """
         #listen for new agents
         pass

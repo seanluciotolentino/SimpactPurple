@@ -1,0 +1,18 @@
+Running on a Cluster
+=========================================
+
+In order to run on a cluster, mpi4py (http://mpi4py.scipy.org/) needs to be installed on the cluster or server.  To run 4 communities in parallel on a single node of the cluster run the following at the command prompt of the worker node::
+
+	mpiexec -n 5 python MainMPI.py
+	
+This starts 5 processes, 4 of which handle actions for a CommunityMPI object, and 1 which handles organization of the communities through the GlobalMPI object. To run on a cluster of nodes (not just a single worker), run the following::
+
+	mpiexec -n 5 -host v1,v2,v3,v4 python MainMPI.py
+
+Where v1, v2, v3, v4 are worker nodes where processes can be initiated. Note that you'll need to be able to log into (ssh into) these nodes without a password to work correctly. 
+
+.. automodule:: GlobalMPI
+   :members: 
+   
+.. automodule:: CommunityMPI
+   :members: 

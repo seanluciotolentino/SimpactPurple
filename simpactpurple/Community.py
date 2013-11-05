@@ -2,16 +2,12 @@
 The main module a simulation of a community. 
 """
 
-#NOTE: Queue.PriorityQueue() gives priority to lower numbers
-
 import Operators
 import Agent
 import random
 import networkx as nx
 import time as Time  # I use the keyword time
 import numpy as np
-#import interval as np # when numpy isn't available
-import sys
 
 class Community():
     """
@@ -57,8 +53,8 @@ class Community():
         
     def run(self, timing=False):
         """
-        Runs the mainloop of the simulation. Clear all data structures,
-        make agents, and iterate through time steps.
+        Runs the mainloop of the simulation. Clear all data structures, make
+        agents, and iterate through time steps.
         """
         start = Time.time()  # for timing simulation
         self.start()
@@ -78,6 +74,9 @@ class Community():
         if timing: print "simulation took",end-start,"seconds"
         
     def cleanup(self):
+        """
+        Send a 'terminate' signal to all of the Grid Queues.
+        """
         for pipe in self.relationship_operator.pipes.values():
             pipe.send("terminate")
 
@@ -142,7 +141,6 @@ class Community():
     def age(self,agent):
         """
         Finds the age of *agent*
-
         """
         return (self.time - agent.born)/52.0
 
@@ -153,22 +151,10 @@ class Community():
         not provided), this function will calculate it. 
         """
         if(age_difference is None or mean_age is None):
-            try:
-                agent1_age = self.relationship_operator.grid_queues[agent1.grid_queue].my_age
-                agent2_age = self.relationship_operator.grid_queues[agent2.grid_queue].my_age
-                mean_age = (agent1_age + agent2_age) / 2
-                age_difference = agent2_age - agent1_age
-            except TypeError:
-                print "=========TYPE ERROR========="
-                print "time",self.time
-                print "agent1",agent1,"age:",self.age(agent1),"gq:",agent1.grid_queue,"attributes",agent1.attributes
-                print "agent2",agent2,"age:",self.age(agent2),"gq:",agent2.grid_queue,"attributes",agent2.attributes
-                self.debug()  # print the state of grid queues
-                relations = self.relationships[-10:]
-                print "last 10 relations:",[ (r[0].attributes["NAME"],r[1].attributes["NAME"],r[2],r[3]) for r in relations]
-                print "match returns", self.relationship_operator.match_returns
-                sys.stdout.flush()
-                raise TypeError
+            agent1_age = self.relationship_operator.grid_queues[agent1.grid_queue].my_age
+            agent2_age = self.relationship_operator.grid_queues[agent2.grid_queue].my_age
+            mean_age = (agent1_age + agent2_age) / 2
+            age_difference = agent2_age - agent1_age
             
         #0
         #return agent1.gender ^ agent2.gender
@@ -207,7 +193,7 @@ class Community():
         print "Cumulative num relations:",len(self.relationships)
         print "Point prevalence of relations:",len(self.network.edges())
         print "Grid Queues"
-        print "agent in grid queues = ",sum([ len(gq.my_agents.heap) for gq in self.relationship_operator.grid_queues])
+        print "agents in grid queues = ",sum([ len(gq.my_agents.heap) for gq in self.relationship_operator.grid_queues])
             
         print "GQ\t| G Ag Sz|| doubles?\t|| agents"
         print "------------------------------------------"
@@ -232,28 +218,4 @@ class Community():
             agents = pipe.recv().heap
             doubles.append([a for p,a in agents if agents.count(a) > 1])
         any_doubles = any([any(d) for d in doubles])
-        assert (not any_doubles), "Duplicates in grid queues:" + " ".join([str(d) for d in doubles])
-        
-        #assert that agents with no grid queue (a.grid_queue == None) aren't in grid queues
-        #count_limit = 0.10 * self.INITIAL_POPULATION
-        #count = 0
-        #agents = self.agents.values()
-        #random.shuffle(agents)
-        #pipes = self.relationship_operator.pipes.values()
-        #for agent in agents:
-        #    if count > count_limit:
-        #        break
-        #    count+=1
-        #    if agent.grid_queue is not None: 
-        #        continue
-        #    #not in grid queues?
-        #    for pipe in pipes:
-        #        pipe.send("contains")
-        #        pipe.send(agent.attributes["NAME"])
-        #    not any([pipe.recv() for pipe in pipes])
-        #    #not in the network?
-        #    assert agent not in self.network.nodes()
-                
-            
-            
-            
+        assert (not any_doubles), "Duplicates in grid queues:" + " ".join([str(d) for d in doubles])        
