@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Sep 15 13:56:56 2013
-s
+
 @author: Lucio
+
+A test script for running a single community on a signal node
+with parallel grid queues. 
+
 """
 
 import Community
@@ -11,7 +15,8 @@ import GraphsAndData
 if __name__ == '__main__':
     s = Community.Community()
     s.INITIAL_POPULATION = 100
-    s.NUMBER_OF_YEARS = 1
+    s.NUM_CPUS = 20
+    s.NUMBER_OF_YEARS = 0.1
     s.run(timing = True)
 
     #GRAPH VERIFICATION

@@ -14,7 +14,7 @@ from the command line.
 Overview
 -----------------------
 
-Agent-based simulations of disease require defining how two main operations:
+Agent-based simulations of disease require defining how two main operations occur:
 
 1. Interactions: How are relationships (sexual or otherwise) formed and dissolved
 2. Infection: How is the disease (HIV in our case) transmitted
@@ -30,15 +30,14 @@ The Algorithm
 
 From experience we know that producing a contact network resembling real life is the bottleneck in sexual network simulations. There are several reasons for this:  The first being that we ideally want every individual to be potentially connected to every other individual even when there is an extremely small chance of forming a relationship. This means that there may be a large number of unlikely relationships which can cost have high cost in terms of memory consumption (SimpactWhite) or computation (SimpactBlu). The second reason is that we want to consider the preferences of both individuals who are forming the relationship.  For example, the EMOD simulator [#]_ uses a queuing-based algorithm and runs efficiently, but the propensity of the relationship is only informed by the preference of males. The third reason is that we want the hazard of forming a relationship to depend on multiple dimensions of individuals characteristics. The Complex-Agent-Network (CAN) model presented by Sloot et. al forms relationships based only on a predefined desired number of partners [#]_, and does not lend itself to flexibility of other characteristics. Below we present our algorithm for relationship formation which solves these problems through parallelism and queues.
 
-We first create a grid of queues with dimensions based on the attributes which we want to use to inform relationship formation. Complex models may use attributes like individual sexual drive parameters or socioeconomic status, but our initial proof-of-concept model creates a 2xM grid of queues based on two genders and M age categories (we acknowledge the existence of more than two genders, but we omit them for simplicity). Therefore, we have a grid of queues, with each Grid Queue responsible for agents of a specific gender and age.	
+In order create a model which meets the three requirement outlined above and be able to handle sufficiently large populations, we need to take advantage of several aspects of the problem domain. In particular, we use the fact that similar individuals will yield similar hazard of formation for the same individual.  For example, all else being equal, an 18-year-old female and an 19-year-old female have a similar chance of forming a relationship with an arbitrary 25-year-old male. We can take advantage of this by partitioning the population based on attributes that are significant in the hazard function. 
 
-We recruit agents from the Grid Queues (with some predefined characteristic) to populate a Main Queue (Figure 1). Recruited agents are placed into the Main Queue such that they are ordered near agents of the same Grid Queue. To form a relationship we take the top agent from the Main Queue, referred to as the suitor, and send a message to each Grid Queue that the suitor is looking for a match (Figure 2). 
+We create a grid of queues with dimensions based on the attributes which we want to use to inform relationship formation.  The initial proof-of-concept model creates a 2x10 grid of queues based on 2 sexes and 10 age categories (ages 15 to 65, grouped by 5). Therefore, we have a grid of queues, with each Grid Queue holding agents of a specific sex and age. With this grid of queues, we recruit agents to populate another queue, called the Main Queue (Figure 1). Recruited agents are placed into the Main Queue such that they are ordered near agents of the same Grid Queue. To form a relationship we take the top agent from the Main Queue, referred to as the suitor, and send a message to each Grid Queue that the suitor is looking for a match (Figure 2).
 
-With the information about the suitor, each Grid Queue sorts its agents into a heap (in parallel) relative to each agent's hazard relative to the suitor (Figure 3). The Grid Queue calculates important formation metrics like age different and mean age just once for all of its agents (since all agents in a particular grid queue have effectively the same age).  
+With the information about the suitor, each Grid Queue sorts its agents into a heap (in parallel) relative to each agent's hazard relative to the suitor (Figure 3). Important formation metrics like age difference and mean age, which are approximately similar for every agent in the Grid Queue, are calculated just once for all of the agents.  The Grid Queue then responds with a possible match from its Grid Queue (Figure 4), or None, meaning that none of the agents in the grid queue were willing to form a relationship with the suitor. From the returned possible matches, the suitor chooses a new partner, and the Grid Queues are updated if agents need to be removed.
 
-The Grid Queue then responds with a possible match from its Grid Queue (Figure 4), or None, meaning that none of the agents in the grid queue were willing to form a relationship with the suitor. From the returned possible matches, the suitor chooses a new partner, and the Grid Queues are updated if agents need to be removed. 
+We iterate through the Main Queue, making relationships for each agent. However, since we placed agents in the Main Queue based on their Grid Queue, it is possible that the next suitor is similar in terms of age and sex to the previous suitor. This means that the Grid Queues do not need to resort, since the hazard relative to the agent of this particular age and sex has already been calculated, and Grid Queues can return matches in constant time. 
 
-We iterate through the Main Queue, making relationships for each agent. However, since we placed agents in the Main Queue based on their Grid Queue, it is possible that the next suitor is similar to the previous. This means that the Grid Queues do not need to resort, since the hazard relative to the agent of this particular age and gender has already been calculated. 
 
 Figures
 -----------------------
@@ -49,7 +48,7 @@ Figure 1: The simulation is made up of a grid of queues which holds all the agen
 
 .. image:: images/figure2.png 
 
-Figure 2: A message is send to each Grid Queue, asking for a match to this particular suitor. 
+Figure 2: A message is sent to each Grid Queue, asking for a match to this particular suitor. 
  
 .. image:: images/figure3.png 
  

@@ -2,7 +2,6 @@
 Class for holding the basic elements of an Agent.
 """
 
-import math
 import numpy as np
 #import interval as np # when you don't have numpy
 
@@ -13,7 +12,7 @@ class Agent():
         as None to emphasis their existence
         """
         self.born = None
-        self.gender = None
+        self.sex = None
         self.dnp = None
         self.grid_queue = None;
     
@@ -22,5 +21,5 @@ class Agent():
         self.attributes = attributes
         
     def __str__(self):
-        return "Name: " + str(self.attributes["NAME"]) + " Born: " + str(round(self.born,2)) + " Gender: " + str(self.gender) #+ " GQ:" + str(self.grid_queue.my_index)
+        return "Name: " + str(self.attributes["NAME"]) + " Born: " + str(round(self.born,2)) + " Sex: " + str(self.sex) #+ " GQ:" + str(self.grid_queue.my_index)
 

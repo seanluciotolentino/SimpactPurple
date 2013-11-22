@@ -8,6 +8,7 @@ import random
 import networkx as nx
 import time as Time  # I use the keyword time
 import numpy as np
+import multiprocessing
 
 class Community():
     """
@@ -16,14 +17,14 @@ class Community():
     def __init__(self):
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
-
+        
         #MODEL POPULATION
         self.INITIAL_POPULATION = 100
         self.AGENT_ATTRIBUTES = {}
         
         #MODEL OPERATORS
         #relationship operator
-        self.GENDERS = 2
+        self.SEXES = 2
         self.MIN_AGE = 15
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
@@ -32,24 +33,10 @@ class Community():
         #infection operator
         self.INFECTIVITY = 0.01
         self.INTIIAL_PREVALENCE = 0.01
-        self.SEED_TIME = 0.5  # in years        
+        self.SEED_TIME = 0  # in years        
 
         #time operator
         self.time = 0
-        
-    def start(self):
-        """
-        Initializes the data structures and operators.  This allows users to 
-        set simulation variables and still have initialization of data
-        structures independent from the run method.
-        """
-        self.network = nx.Graph()
-        self.agents = {}  # agent_name --> agent
-        self.grid_queue = {}  # agent --> grid_queue
-        self.relationships = []
-        self.make_operators()  
-        self.make_population(self.INITIAL_POPULATION)  # make agents
-        self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
         
     def run(self, timing=False):
         """
@@ -73,12 +60,63 @@ class Community():
         end = Time.time()
         if timing: print "simulation took",end-start,"seconds"
         
-    def cleanup(self):
+    def start(self):
         """
-        Send a 'terminate' signal to all of the Grid Queues.
+        Initializes the data structures and operators.  This allows users to 
+        set simulation variables and still have initialization of data
+        structures independent from the run method.
         """
-        for pipe in self.relationship_operator.pipes.values():
-            pipe.send("terminate")
+        self.network = nx.Graph()
+        self.agents = {}  # agent_name --> agent
+        self.grid_queue = {}  # agent --> grid_queue
+        self.relationships = []
+        self.make_operators()  
+        self.make_population(self.INITIAL_POPULATION)  # make agents
+        self.born = lambda: self.time - (52*15.02)  # new born function for replacement
+        self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
+            
+    def make_operators(self):
+        """
+        Creates the operators necessary for the simulation.
+        """
+        self.relationship_operator = Operators.RelationshipOperator(self)
+        self.infection_operator = Operators.InfectionOperator(self)
+        self.time_operator = Operators.TimeOperator(self)
+        
+    def make_population(self, size, born=None, sex=None, dnp=None):
+        """
+        Creates *size* agents with age, sex, and desired number of partners
+        (DNP) dictated by *born*, *sex*, and *dnp* (functions). If these 
+        these are omitted, default distributions will be used.
+
+        After an agent receives a name, age, sex, and DNP, he or she is added
+        to the network graph and added to a grid queue.
+        """
+        if not born:
+            born = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
+        sex = lambda: random.randint(0, self.SEXES - 1)
+        dnp = lambda: random.randint(1, 3)
+        
+        self.AGENT_ATTRIBUTES["TIME_ADDED"] = self.time
+        self.AGENT_ATTRIBUTES["TIME_REMOVED"] = np.Inf
+        for i in range(size):
+            #make agent and add some attributes
+            a = Agent.Agent(self.AGENT_ATTRIBUTES.copy())
+            a.attributes["NAME"] = len(self.agents)  # not i b/c replacement
+            a.born = born()
+            a.sex = sex()
+            a.dnp = dnp()
+            self.add(a)
+            
+    def add(self,agent):
+        """
+        Add *agent* to the list of agents, the network, and assign to a grid
+        queue. This is seperate from the make_population method so that
+        other objects can add agents without make_population.
+        """
+        self.agents[agent.attributes["NAME"]] = agent
+        self.network.add_node(agent)
+        self.relationship_operator.update_grid_queue_for(agent)
 
     def step(self):
         """
@@ -92,51 +130,13 @@ class Community():
 
         #2. HIV transmission
         self.infection_operator.step()
-
-    def make_population(self, size, born=None, gender=None, dnp=None):
+        
+    def cleanup(self):
         """
-        Creates *size* agents with age, gender, and desired number of partners
-        (DNP) dictated by *born*, *gender*, and *dnp* (functions). If these 
-        these are omitted, default distributions will be used.
-
-        After an agent receives a name, age, gender, and DNP, he or she is added
-        to the network graph and added to a grid queue.
+        Send a 'terminate' signal to all of the Grid Queues.
         """
-        if born is None:
-            born = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
-        if gender is None:
-            gender = lambda: random.randint(0, self.GENDERS - 1)
-        if dnp is None:
-            dnp = lambda: random.randint(1, 3)
-
-        self.AGENT_ATTRIBUTES["TIME_ADDED"] = self.time
-        self.AGENT_ATTRIBUTES["TIME_REMOVED"] = np.Inf
-        for i in range(size):
-            #make agent and add some attributes
-            a = Agent.Agent(self.AGENT_ATTRIBUTES.copy())
-            a.attributes["NAME"] = len(self.agents)  # not i b/c replacement
-            a.born = born()
-            a.gender = gender()
-            a.dnp = dnp()
-            self.add(a)            
-            
-    def add(self,agent):
-        """
-        Add *agent* to the list of agents, the network, and assign to a grid
-        queue. This is seperate from the make_population method so that
-        other objects can add agents without make_population.
-        """
-        self.agents[agent.attributes["NAME"]] = agent
-        self.network.add_node(agent)
-        self.relationship_operator.update_grid_queue_for(agent)
-            
-    def make_operators(self):
-        """
-        Creates the operators necessary for the simulation.
-        """
-        self.relationship_operator = Operators.RelationshipOperator(self)
-        self.infection_operator = Operators.InfectionOperator(self)
-        self.time_operator = Operators.TimeOperator(self)
+        for pipe in self.relationship_operator.pipes.values():
+            pipe.send("terminate")
 
     def age(self,agent):
         """
@@ -157,18 +157,18 @@ class Community():
             age_difference = agent2_age - agent1_age
             
         #0
-        #return agent1.gender ^ agent2.gender
+        #return agent1.sex ^ agent2.sex
 
         #1
         age_difference = abs(age_difference)
         AGE_DIFFERENCE_FACTOR =-0.2
         MEAN_AGE_FACTOR = -0.01  # smaller --> less likely
         BASELINE = 1
-        h = (agent1.gender ^ agent2.gender)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
+        h = (agent1.sex ^ agent2.sex)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
         return h
 
         #2
-        ##preferred_age_difference = (1 - (2*agent1.gender))* -0.5
+        ##preferred_age_difference = (1 - (2*agent1.sex))* -0.5
         ##probability_multiplier = -0.1
         ##preferred_age_difference_growth = 1
         ##top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
@@ -176,7 +176,7 @@ class Community():
         ##return (agent1.likes(agent2))*h
 
         #3
-        ##preferred_age_difference = (1 - (2 * agent1.gender)) * -0.5
+        ##preferred_age_difference = (1 - (2 * agent1.sex)) * -0.5
         ##probability_multiplier = -0.1
         ##preferred_age_difference_growth = 0.9
         ##age_difference_dispersion = -0.05
@@ -186,7 +186,7 @@ class Community():
         ##return (agent1.likes(agent2))*h
 
         #4
-        #return int(not (agent1.gender ^ agent2.gender))  # true if same gender
+        #return int(not (agent1.sex ^ agent2.sex))  # true if same sex
 
     def debug(self):
         print "======================", self.time, "======================="
@@ -203,7 +203,7 @@ class Community():
             agents = pipe.recv()
             agents = [str(a.attributes["NAME"]) for p,a in agents.heap]
             
-            line = str(gq.my_index) + "\t|" + str(gq.my_gender) + " " + \
+            line = str(gq.my_index) + "\t|" + str(gq.my_sex) + " " + \
                 str(gq.my_age) + " " + str(len(agents)) + " || " + \
                 str(any([a for a in agents if agents.count(a) > 1])) + \
                 "\t|| " + " ".join(agents)

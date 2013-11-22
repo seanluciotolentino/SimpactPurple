@@ -23,7 +23,7 @@ def age_mixing_graph(s, filename = None):
     females = []
     for r in s.relationships:
         #eventually need an if statement to not include homosexual relations
-        if r[0].gender:
+        if r[0].sex:
             male = r[1]
             female = r[0]
         else:
@@ -64,7 +64,7 @@ def age_mixing_heat_graph(s, grid = 10, filename = None):
     #Go through relationships and add 1.0 to the appropriate box
     for r in s.relationships:
         #eventually need an if statement to not include homosexual relations
-        if r[0].gender:
+        if r[0].sex:
             male = r[1]
             female = r[0]
         else:
@@ -326,7 +326,7 @@ def sexual_network_graph(s, layout = "spring", time = None, filename = None):
     for r in s.relationships:
         if time and not (r[2] < time and time < r[3]):  # start < time < end
             continue
-        g = (["M","F"][r[0].gender], ["M","F"][r[1].gender])  # grab agent genders
+        g = (["M","F"][r[0].sex], ["M","F"][r[1].sex])  # grab agent sexes
         G.add_edge(str(r[0].attributes["NAME"])+g[0], str(r[1].attributes["NAME"])+g[1])
 
     #get layout

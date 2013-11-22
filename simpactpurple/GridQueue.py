@@ -3,21 +3,21 @@ The module for the GridQueue class and function for listening.
 """
 import random
 import PriorityQueue #lucio's implementation
+import numpy as np
 import multiprocessing
 import sys
 import math
 import time
 
-def listen(gq, pipe):  # ,lock): <-- passed lock to test parallel vs seq
+def listen(gq, pipe):#, semaphore ):
     """
-    Listens for an action from *pipe* to perform on *gq*.
+    Listens for an action from *pipe* to perform on *gq*. *semaphore* object
+    passed by relationship operator which creates it -- allows simulation to
+    use less than all the cores of the machine. 
     """
-    lock = multiprocessing.Lock()
     while True:
         action = pipe.recv()
-        lock.acquire()  # so only one action occurs at once
-        #print "GQ",gq.my_index,"acquired lock. performing",action
-        #sys.stdout.flush()
+        #semaphore.acquire()        
         if action == "recruit":
             pipe.send(gq.recruit())
         elif action == "enquire":
@@ -33,31 +33,32 @@ def listen(gq, pipe):  # ,lock): <-- passed lock to test parallel vs seq
         elif action == "time":
             gq.time = pipe.recv()
         elif action == "terminate":
+            #print gq.my_index, "terminating"
             break
         else:
             raise ValueError, "GridQueue received unknown action:" + action
-        lock.release()  # finished the action
+        #semaphore.release()
 
 
 class GridQueue():
     """
-    A data structure for holding agents of similar age and gender.
+    A data structure for holding agents of similar age and sex.
     """
 
-    def __init__(self, top, bottom, gender, index, hazard):
+    def __init__(self, top, bottom, sex, index):#, hazard):
         self.top = top
         self.bottom = bottom
         self.my_age = (top + bottom)/2
-        self.my_gender = gender
+        self.my_sex = sex
         self.my_index = index
-        self.hazard = hazard 
+        #self.hazard = hazard  -- CANT BE SENT THROUGH COMM?
 
         #Data structures for keeping track of agents
         self.my_agents = PriorityQueue.PriorityQueue()  # populated with agents
         self.names = {}
         self.previous = None
         self.time = 0
-        
+    
     def recruit(self):
         """
         Returns the agent name from the queue that has been waiting the
@@ -191,7 +192,30 @@ class GridQueue():
         """
         Returns the age of the *agent*
         """
-        return (self.time - agent.born)/52           
+        return (self.time - agent.born)/52      
+        
+    def hazard(self, agent1, agent2, age_difference=None, mean_age=None):
+        """
+        Calculates and returns the hazard of relationship formation between
+        agent1 and agent2. If *age_difference* or *mean_age* is None (i.e.
+        not provided), this function will calculate it. 
+        """
+        if(age_difference is None or mean_age is None):
+            agent1_age = self.age(agent1)
+            agent2_age = self.age(agent2)
+            mean_age = (agent1_age + agent2_age) / 2
+            age_difference = agent2_age - agent1_age
+            
+        #0
+        #return agent1.sex ^ agent2.sex
+
+        #1
+        age_difference = abs(age_difference)
+        AGE_DIFFERENCE_FACTOR =-0.2
+        MEAN_AGE_FACTOR = -0.01  # smaller --> less likely
+        BASELINE = 1
+        h = (agent1.sex ^ agent2.sex)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
+        return h
             
     #Functions for debuging
     def agents_in_queue(self):
