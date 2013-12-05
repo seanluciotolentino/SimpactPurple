@@ -155,7 +155,7 @@ def formed_relations_data(s):
     relations = [0] * num_weeks
     for r in s.relationships:
         start = r[2]
-        end = min((r[3]+1, num_weeks))
+        end = int(round(min((r[3]+1, num_weeks))))
         for t in range(start, end):
             relations[t] += 1
     
@@ -322,6 +322,8 @@ def sexual_network_graph(s, layout = "spring", time = None, filename = None):
     of displayed on the screen.
     """
     #rebuild the graph for visualization
+    if not time:
+        time = s.NUMBER_OF_YEARS*52
     G = nx.Graph()
     for r in s.relationships:
         if time and not (r[2] < time and time < r[3]):  # start < time < end
@@ -364,3 +366,137 @@ def sexual_network_graph(s, layout = "spring", time = None, filename = None):
     else:
         plt.savefig(filename)
         plt.close(fig)
+        
+def relationship_durations(s, filename = None):
+    """
+    Generates a histogram of relationship durations in the simulation.
+    """
+    durations = [r[3]-r[2] for r in s.relationships]
+    
+    plt.ioff()
+    fig = plt.figure()
+    plt.hist(durations, normed = True)
+    plt.xlim(0,52)
+    plt.xlabel("Relationship Duration (weeks)")
+    plt.ylabel("Freqency (count)")
+    plt.title("Relationship Durations")
+    if filename is None:
+        plt.ion()
+        plt.show(block=False)
+    else:
+        plt.savefig(filename)
+        plt.close(fig)
+
+def gap_lengths(s, filename=None):
+    """
+    Generates a histogram of gap lengths (i.e. the time between relationships
+    for individuals).
+    
+    NOTE: THIS FIRST PASS SOLUTION IS INCORRECT.  The gap length is the time
+    between the most recently ended relationship and the start of the next.
+    Currently it is just between the previous relationship and the start of 
+    the next (the previous relationship isn't always the most recently end)
+    """
+    gap_lengths = []
+    for agent in s.agents.values():
+        agent_relations = [(r[2],r[3]) for r in s.relationships if r[0] is agent or r[1] is agent]
+        if not agent_relations:
+            continue  # skip if this agent didn't have any relationships
+        agent_relations.sort()
+        gap_length = [agent_relations[i][0] - agent_relations[i-1][1] for i in range(1,len(agent_relations))]
+        gap_lengths.append(sum(gap_length)/len(agent_relations))
+        
+    #plot it        
+    plt.ioff()
+    fig = plt.figure()
+    plt.hist(gap_lengths)
+    plt.xlabel("Gap Lengths (weeks)")
+    plt.ylabel("Freqency (count)")
+    plt.title("Gap Lengths")
+    if filename is None:
+        plt.ion()
+        plt.show(block=False)
+    else:
+        plt.savefig(filename)
+        plt.close(fig)
+        
+def partner_turnover_rate(s):
+    """
+    Calculates and returns the partner turnover rate of a simulation.
+    """
+    #1. Calc person years
+    person_years = 0.0
+    for agent in s.agents.values():
+        removal = min(s.NUMBER_OF_YEARS*52, agent.attributes["TIME_REMOVED"])
+        added = agent.attributes["TIME_ADDED"]
+        person_years += max(0, (removal - added)/52.0)
+        
+    #2. Calculate number of relationships
+    number_relationships = 2.0*len(s.relationships)
+    
+    #3. divide number of relationships by person years to get partners per year
+    return number_relationships / person_years
+    
+def concurrency(s, time = None):
+    """
+    Calculates the point prevalence of concurrency in the sexual network. This
+    is defined as the proportion of relationships in which at least one of the 
+    partners is in an additional relationship. If *time* is provided, the 
+    concurrency will be calculated for the sexual network for that time. The
+    default time is the end of the simulation.
+    """
+    if not time:
+        G = s.network
+    else:  # rebuild the graph for the given timestep
+        G = nx.Graph()
+        for r in s.relationships:
+            if time and not (r[2] < time and time < r[3]):  # start < time < end
+                continue
+            G.add_edge(r[0], r[1])
+            
+    #go through edges and see if it's a concurrent relationship
+    concurrent = [1.0 for relationship in G.edges() \
+        if G.degree(relationship[0]) > 1 or G.degree(relationship[1]) > 1]
+    return sum(concurrent) / G.number_of_edges()
+    
+def total_lifetime_partners(s, filename = None):
+    """
+    Generates a heat map of male and female ages for each relationship
+    formed. Finer or coarser grain grid can be made by changing *grid*.
+    If *filename* is provided (string), the graph is saved to the 
+    file instead of displayed on the screen.
+    """
+    
+    boxes = np.zeros((20, 20))
+    
+    #Go through relationships and add 1.0 to the appropriate box
+    for agent in s.agents.values():
+        age = int(s.age(agent) / s.BIN_SIZE)
+        partners = min(19, len([r for r in s.relationships if r[0] is agent or r[1] is agent]))
+        boxes[partners][age] += 1.0
+
+    boxes_max = max([max(row) for row in boxes])
+    boxes = np.array([[value / boxes_max for value in row] for row in boxes])
+
+    plt.ioff()
+    fig = plt.figure()
+    plt.pcolormesh(boxes)
+    plt.colorbar()
+    plt.title("Total Lifetime Partners")
+    plt.xlabel("Age Bins")
+    plt.ylabel("Total Partners")
+    if filename is None:
+        plt.ion()
+        plt.show(block=False)
+    else:
+        plt.savefig(filename)
+        plt.close(fig)
+
+def network_metrics(s):
+    print "Concurrency", concurrency(s)
+    print "Partner Turnover Rate", partner_turnover_rate(s)
+    print "Average Clustering", nx.algorithms.bipartite.average_clustering(s.network)
+    #print "Degree Assortivity", nx.degree_assortativity_coefficient(s.network)
+    #print "Average node connectivity", nx.average_node_connectivity(s.network)
+    
+    

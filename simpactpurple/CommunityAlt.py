@@ -3,7 +3,7 @@ import numpy as np
 import Community
 import OperatorsAlt
 import Operators
-import Agent
+import time
 
 class CommunityAlt(Community.Community):
     """
@@ -48,11 +48,9 @@ class CommunityAlt(Community.Community):
         self.time = -1
         while self.comm.recv(source = 0) == "step":
             self.time+=1
-            #print self.comm.Get_rank(),"---received step signal, time", self.time
             self.step()
-            #print self.comm.Get_rank(),"---sending done signal, time", self.time
             self.comm.send("done", dest = 0)
-        import time
+        
         time.sleep(2)
         self.cleanup()
     

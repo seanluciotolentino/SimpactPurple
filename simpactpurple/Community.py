@@ -4,10 +4,10 @@ The main module a simulation of a community.
 
 import Operators
 import Agent
-import random
 import networkx as nx
 import time as Time  # I use the keyword time
 import numpy as np
+import numpy.random as random
 import multiprocessing
 
 class Community():
@@ -18,10 +18,6 @@ class Community():
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
         
-        #MODEL POPULATION
-        self.INITIAL_POPULATION = 100
-        self.AGENT_ATTRIBUTES = {}
-        
         #MODEL OPERATORS
         #relationship operator
         self.SEXES = 2
@@ -29,6 +25,7 @@ class Community():
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
         self.MAIN_QUEUE_MAX = 0.1  # proportion of initial population
+        self.DURATIONS = lambda: random.randint(1,5)
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -37,6 +34,13 @@ class Community():
 
         #time operator
         self.time = 0
+                
+        #MODEL POPULATION
+        self.INITIAL_POPULATION = 100
+        self.AGENT_ATTRIBUTES = {}
+        self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
+        self.SEX = lambda: random.randint(self.SEXES)
+        self.DNP = random.power(0.2)*(10*52)
         
     def run(self, timing=False):
         """
@@ -44,17 +48,15 @@ class Community():
         agents, and iterate through time steps.
         """
         start = Time.time()  # for timing simulation
-        self.start()
-        #run mainloop
+        self.start()  # initialize data structures
+        
+        #mainloop
         for t in range(int(self.NUMBER_OF_YEARS*52)):
-            self.time = t  # I wonder if this is bad form
-            #if t%52==0: print "=== Year",t/52,"==="
-            #sys.stdout.flush()
-            #self.debug()
-            #self.assertions()            
+            self.time = t
             self.step()
-        #clean up
-        self.cleanup()    
+            #self.assertions()
+        
+        self.cleanup()  # send terminate signal
 
         #print timing if desired:
         end = Time.time()
@@ -72,7 +74,7 @@ class Community():
         self.relationships = []
         self.make_operators()  
         self.make_population(self.INITIAL_POPULATION)  # make agents
-        self.born = lambda: self.time - (52*15.02)  # new born function for replacement
+        self.BORN = lambda: self.time - (52*15.02)  # new born function for replacement
         self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
             
     def make_operators(self):
@@ -83,7 +85,8 @@ class Community():
         self.infection_operator = Operators.InfectionOperator(self)
         self.time_operator = Operators.TimeOperator(self)
         
-    def make_population(self, size, born=None, sex=None, dnp=None):
+    #def make_population(self, size, born=None):
+    def make_population(self, size):
         """
         Creates *size* agents with age, sex, and desired number of partners
         (DNP) dictated by *born*, *sex*, and *dnp* (functions). If these 
@@ -92,10 +95,10 @@ class Community():
         After an agent receives a name, age, sex, and DNP, he or she is added
         to the network graph and added to a grid queue.
         """
-        if not born:
-            born = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
-        sex = lambda: random.randint(0, self.SEXES - 1)
-        dnp = lambda: random.randint(1, 3)
+#        if not born:
+#            born = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
+#        sex = lambda: random.randint(self.SEXES)
+#        dnp = self.DNP
         
         self.AGENT_ATTRIBUTES["TIME_ADDED"] = self.time
         self.AGENT_ATTRIBUTES["TIME_REMOVED"] = np.Inf
@@ -103,9 +106,9 @@ class Community():
             #make agent and add some attributes
             a = Agent.Agent(self.AGENT_ATTRIBUTES.copy())
             a.attributes["NAME"] = len(self.agents)  # not i b/c replacement
-            a.born = born()
-            a.sex = sex()
-            a.dnp = dnp()
+            a.born = self.BORN()
+            a.sex = self.SEX()
+            a.dnp = self.DNP()
             self.add(a)
             
     def add(self,agent):
@@ -133,12 +136,18 @@ class Community():
         
     def cleanup(self):
         """
-        Send a 'terminate' signal to all of the Grid Queues.
+        Send a 'terminate' signal to all of the Grid Queues. Update end values
+        in relationships (to account for deaths). 
         """
         for pipe in self.relationship_operator.pipes.values():
             pipe.send("terminate")
+            
+        for r in self.relationships:
+            agent1 = r[0]
+            agent2 = r[1]
+            r[3] = min((r[3], agent1.attributes["TIME_REMOVED"], agent2.attributes["TIME_REMOVED"]))
 
-    def age(self,agent):
+    def age(self, agent):
         """
         Finds the age of *agent*
         """

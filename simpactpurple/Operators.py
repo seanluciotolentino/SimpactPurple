@@ -28,23 +28,22 @@ class RelationshipOperator():
         self.grid_queues = []
         
         #make Grid Queues:
-        #hazard = self.master.hazard
-        for age in range(master.MIN_AGE, master.MAX_AGE, master.BIN_SIZE):
-            for sex in range(master.SEXES):
-                bottom = age
-                top = age+master.BIN_SIZE
-                self.grid_queues.append(GridQueue.GridQueue(top, bottom, 
-                                        sex, len(self.grid_queues)))#,
-                                        #hazard))
-        master.NUMBER_OF_GRID_QUEUES = len(self.grid_queues)
-
-        #start the GridQueues and add pipes
         self.pipes = {}
-        for gq in self.grid_queues:
-            pipe_top, pipe_bottom = multiprocessing.Pipe()
-            p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))#, semaphore))
-            p.start()
-            self.pipes[gq.my_index] = pipe_top
+        for age in range(master.MIN_AGE, master.MAX_AGE, master.BIN_SIZE):
+            bottom = age
+            top = age+master.BIN_SIZE
+            for sex in range(master.SEXES):
+                #make the grid queue
+                gq = GridQueue.GridQueue(top, bottom, sex, len(self.grid_queues))
+                self.grid_queues.append(gq)
+                                        
+                #start a new process for it
+                pipe_top, pipe_bottom = multiprocessing.Pipe()
+                p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))#, semaphore))
+                p.start()
+                self.pipes[gq.my_index] = pipe_top                       
+                                    
+        master.NUMBER_OF_GRID_QUEUES = len(self.grid_queues)
                         
     def step(self):
         """
@@ -126,29 +125,24 @@ class RelationshipOperator():
             #print "   -Suitor choose",match
             self.form_relationship(suitor, match) 
             if self.master.network.degree(suitor) >= suitor.dnp:
-                #print "send remove for agent",suitor.attributes["NAME"],"place",1
                 self.pipes[suitor.grid_queue].send("remove")
                 self.pipes[suitor.grid_queue].send(suitor.attributes["NAME"])
             if self.master.network.degree(match) >= match.dnp:
-                #print "send remove for agent",match.attributes["NAME"],"place",2
                 self.pipes[match.grid_queue].send("remove")
                 self.pipes[match.grid_queue].send(match.attributes["NAME"])
         else:
             #print "   -Suitor had no luck flipping coins"
             pass
-
             
     def form_relationship(self, agent1, agent2):
         """
         Forms a relationship between agent1 and agent2.
         """
         d = self.duration(agent1, agent2)
-        #print "relationship formed:",agent1.attributes["NAME"],agent2.attributes["NAME"],"duration:",d
         agent1.last_match = self.master.time
         agent2.last_match = self.master.time
-        self.master.relationships.append((agent1, agent2, self.master.time, self.master.time + d))
+        self.master.relationships.append([agent1, agent2, self.master.time, self.master.time + d])
         self.master.network.add_edge(agent1, agent2, {"duration": d})
-        #print "  formation:",agent1.attributes["NAME"],agent2.attributes["NAME"]
 
     def dissolve_relationship(self, agent1, agent2):
         """
@@ -169,7 +163,7 @@ class RelationshipOperator():
         kind of relationship they would form (i.e., transitory, casual,
         marriage). 
         """
-        return random.randint(1, 5)  # initial naive duration calculation
+        return self.master.DURATIONS()  # initial naive duration calculation
 
     def update_grid_queue_for(self, agent):
         """
@@ -181,8 +175,9 @@ class RelationshipOperator():
         """
         grid_queue = [gq for gq in self.grid_queues if gq.accepts(agent)][agent.sex]
         agent.grid_queue = grid_queue.my_index
-        self.pipes[agent.grid_queue].send("add")
-        self.pipes[agent.grid_queue].send(agent)
+        if self.master.network.degree(agent) < agent.dnp:
+            self.pipes[agent.grid_queue].send("add")
+            self.pipes[agent.grid_queue].send(agent)
 
 
 class TimeOperator():
@@ -215,8 +210,6 @@ class TimeOperator():
         for agent in agents:
             agent_name = agent.attributes["NAME"]
             agent_pipe = self.master.relationship_operator.pipes[agent.grid_queue]
-            #agent_pipe.send("contains")
-            #agent_pipe.send(agent_name)
 
             #if too old
             if self.master.age(agent) >= self.master.MAX_AGE:
@@ -253,7 +246,8 @@ class TimeOperator():
         agent.attributes["TIME_REMOVED"] = self.master.time
         
         #replace
-        self.master.make_population(1, born=lambda: self.master.time - (52*15))
+        #self.master.make_population(1, born=lambda: self.master.time - (52*15))
+        self.master.make_population(1)
 
 class InfectionOperator():
     """
