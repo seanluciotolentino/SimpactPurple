@@ -9,15 +9,14 @@ import sys
 import math
 import time
 
-def listen(gq, pipe):#, semaphore ):
+def listen(gq, pipe):
     """
     Listens for an action from *pipe* to perform on *gq*. *semaphore* object
     passed by relationship operator which creates it -- allows simulation to
     use less than all the cores of the machine. 
     """
     while True:
-        action = pipe.recv()
-        #semaphore.acquire()        
+        action = pipe.recv()        
         if action == "recruit":
             pipe.send(gq.recruit())
         elif action == "enquire":
@@ -33,11 +32,9 @@ def listen(gq, pipe):#, semaphore ):
         elif action == "time":
             gq.time = pipe.recv()
         elif action == "terminate":
-            #print gq.my_index, "terminating"
             break
         else:
             raise ValueError, "GridQueue received unknown action:" + action
-        #semaphore.release()
 
 
 class GridQueue():
@@ -51,7 +48,7 @@ class GridQueue():
         self.my_age = (top + bottom)/2
         self.my_sex = sex
         self.my_index = index
-        #self.hazard = hazard  -- CANT BE SENT THROUGH COMM?
+        #self.hazard = hazard  #-- functions can't be pickled
 
         #Data structures for keeping track of agents
         self.my_agents = PriorityQueue.PriorityQueue()  # populated with agents
@@ -210,12 +207,20 @@ class GridQueue():
         #return agent1.sex ^ agent2.sex
 
         #1
-        age_difference = abs(age_difference)
-        AGE_DIFFERENCE_FACTOR =-0.2
-        MEAN_AGE_FACTOR = -0.01  # smaller --> less likely
-        BASELINE = 1
-        h = (agent1.sex ^ agent2.sex)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
-        return h
+        #age_difference = abs(age_difference)
+        #AGE_DIFFERENCE_FACTOR =-0.2
+        #MEAN_AGE_FACTOR = -0.01  # smaller --> less likely
+        #BASELINE = 1
+        #h = (agent1.sex ^ agent2.sex)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
+        #return h
+        
+        #2
+        preferred_age_difference = (1 - (2*agent1.sex))* -0.5
+        probability_multiplier = -0.1
+        preferred_age_difference_growth = 1
+        top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
+        h = np.exp(probability_multiplier *top ) ;
+        return (agent1.sex ^ agent2.sex)*h
             
     #Functions for debuging
     def agents_in_queue(self):

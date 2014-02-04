@@ -12,8 +12,7 @@ if os.popen("echo $DISPLAY").read().strip() == '':  # display not set
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-
-def age_mixing_graph(s, filename = None):
+def age_mixing_data(s, filename = None):
     """
     Generates a scatter plot of male and female ages for each relationship
     formed. If *filename* is provided (string), the graph is saved to the 
@@ -34,6 +33,16 @@ def age_mixing_graph(s, filename = None):
         time_since_relationship = s.time - r[3]
         males.append(((s.age(male)*52.0) - time_since_relationship)/52.0)
         females.append(((s.age(female)*52.0) - time_since_relationship)/52.0)
+
+    return np.array([males, females])
+        
+def age_mixing_graph(s, filename = None):
+    """
+    Generates a scatter plot of male and female ages for each relationship
+    formed. If *filename* is provided (string), the graph is saved to the 
+    file instead of displayed on the screen.
+    """
+    males, females = age_mixing_data(s)
 
     plt.ioff()
     fig = plt.figure()
@@ -183,6 +192,24 @@ def formed_relations_graph(s, filename = None):
         plt.savefig(filename)
         plt.close(fig)
 
+def relations_graph(s, filename = None):
+    """
+    Makes a graph with a line for each relationship. This is an extremely
+    slot graph. 
+    """
+    fig = plt.figure()
+    
+    #num_weeks = min(s.time, int(math.ceil(52 * s.NUMBER_OF_YEARS)))
+    #relations = [0] * num_weeks
+    for i, r in enumerate(s.relationships):
+        start = r[2]
+        end = r[3]
+        plt.plot((i,i),(start,end))
+    
+    plt.xlabel('Relationship number')
+    plt.ylabel('Time')
+    plt.title('Formed Relations')
+
 def infection_data(s):
     """
     Returns a list with total number of infections at every timestep. 
@@ -289,11 +316,9 @@ def demographics_graph(s,time_granularity = 4,num_boxes = 7,box_size = 10, filen
     plt.ioff()
     fig = plt.figure()
     legend = []
-    for l in range(num_boxes):
+    for l in range(num_boxes):  # l -> level
         legend.append(str(l*box_size) + " - " + str((l+1)*box_size))
-        data = []
-        for t in range(len(demographics)):
-            data.append(demographics[t][l])
+        data = [demographics[t][l] for t in range(len(demographics))]
         plt.bar(left = range(0, num_weeks ,time_granularity), height = data,
                 bottom=bottom, width=time_granularity,
                 color=colors[l%len(colors)], linewidth=0.0, zorder=0.0)
@@ -395,7 +420,7 @@ def gap_lengths(s, filename=None):
     NOTE: THIS FIRST PASS SOLUTION IS INCORRECT.  The gap length is the time
     between the most recently ended relationship and the start of the next.
     Currently it is just between the previous relationship and the start of 
-    the next (the previous relationship isn't always the most recently end)
+    the next (the previous relationship isn't always the most recently ended)
     """
     gap_lengths = []
     for agent in s.agents.values():
@@ -491,6 +516,100 @@ def total_lifetime_partners(s, filename = None):
     else:
         plt.savefig(filename)
         plt.close(fig)
+        
+def intergenerational_sex_data(s):
+    """
+    Generates percentages of men and women 15-19 who have had intergenerational
+    relationships. Inspired by 2008 SA Health Survey, used for validation 
+    graphs.  Note: current implementation is slow and ugly, but intuitive. 
+    """
+    male_intergenerational = {}
+    male_generational = {}
+    female_intergenerational = {}
+    female_generational = {}
+    for agent in s.agents.values():
+        if (s.age(agent) >= 20):
+            continue  # only query < 20 y.o.
+
+        if agent.sex:            
+            female_intergenerational[agent] = 0.0
+            female_generational[agent] = 0.0
+        else:
+            male_intergenerational[agent] = 0.0
+            male_generational[agent] = 0.0  
+        
+        for r in s.relationships:  
+            if r[0] is not agent and r[1] is not agent:
+                continue
+            
+            if s.age(r[0])-s.age(r[1]) >= 5:
+                if agent.sex:            
+                    female_intergenerational[agent] = 1.0
+                else:
+                    male_intergenerational[agent] = 1.0
+            else:
+                if agent.sex:            
+                    female_generational[agent] = 1.0
+                else:
+                    male_generational[agent] = 1.0
+    
+    #post process tallies
+    #return (male non-AD, male AD, female non-AD, female AD)
+    return (sum(male_generational.values())/len(male_generational),
+            sum(male_intergenerational.values())/len(male_intergenerational),
+            sum(female_generational.values())/len(female_generational),
+            sum(female_intergenerational.values())/len(female_intergenerational) )
+
+def number_of_partners_data(s):
+    """
+    Generates percentages of men and women who have had multiple partners in 
+    the past 12 months. Inspired by 2008 SA Health Survey, used for validation 
+    graphs.  Note: current implementation is slow and ugly, but intuitive. 
+    """
+    now = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS))) 
+    relationships = {}
+    for agent in s.agents.values():  # for each agent...
+        if agent.attributes["TIME_REMOVED"] < np.inf:
+            continue
+        #print "investigating agent", agent
+        relationships[agent] = 0
+        for r in s.relationships:  # ...go through and count relationships from the past year
+            if r[0] is not agent and r[1] is not agent:
+                continue
+            if r[3] <= now-52:  #only relationships from past 12 months
+                continue   
+            #print "   relationship found", r[2],r[3]
+            relationships[agent]+=1
+    
+    #post process tallies
+    total = {i:0 for i in range(6)}
+    positive = {i:0 for i in range(6)}
+    for agent in relationships.keys():
+        if s.age(agent)<24:
+            age = 0
+        elif s.age(agent)<50:
+            age = 1
+        else:
+            age = 2
+        group = age + (3*agent.sex)
+        #print "sex",agent.sex,"age",s.age(agent), " group --> ", group, relationships[agent], "| total[group]", total[group], "positive[group]", positive[group]
+        total[group]+=1.0
+        positive[group]+=[0,1][relationships[agent]>1]
+
+    #return positive/total for each group
+    print "positive",positive
+    print "total", total
+    return [positive[i]/total[i] for i in range(6)]
+        
+def test_distribution(distribution, samplesize = 100):
+    data = [distribution() for i in range(samplesize)]
+    
+    fig = plt.figure()
+    plt.hist(data)
+    plt.title("Test Distribution")
+    plt.xlabel("Bins")
+    plt.ylabel("Frequency")
+    plt.show(block=False)
 
 def network_metrics(s):
     print "Concurrency", concurrency(s)

@@ -24,8 +24,8 @@ class Community():
         self.MIN_AGE = 15
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
-        self.MAIN_QUEUE_MAX = 0.1  # proportion of initial population
-        self.DURATIONS = lambda: random.randint(1,5)
+        self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
+        self.DURATIONS = lambda: 52*random.exponential(0.9)
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -40,7 +40,7 @@ class Community():
         self.AGENT_ATTRIBUTES = {}
         self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
         self.SEX = lambda: random.randint(self.SEXES)
-        self.DNP = random.power(0.2)*(10*52)
+        self.DNP = lambda: random.power(0.2)*(10*52)
         
     def run(self, timing=False):
         """
@@ -52,6 +52,7 @@ class Community():
         
         #mainloop
         for t in range(int(self.NUMBER_OF_YEARS*52)):
+            print "time",t
             self.time = t
             self.step()
             #self.assertions()
@@ -169,20 +170,20 @@ class Community():
         #return agent1.sex ^ agent2.sex
 
         #1
-        age_difference = abs(age_difference)
-        AGE_DIFFERENCE_FACTOR =-0.2
-        MEAN_AGE_FACTOR = -0.01  # smaller --> less likely
-        BASELINE = 1
-        h = (agent1.sex ^ agent2.sex)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
-        return h
+        #age_difference = abs(age_difference)
+        #AGE_DIFFERENCE_FACTOR =-0.2
+        #MEAN_AGE_FACTOR = -0.01  # smaller --> less likely
+        #BASELINE = 1
+        #h = (agent1.sex ^ agent2.sex)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
+        #return h
 
         #2
-        ##preferred_age_difference = (1 - (2*agent1.sex))* -0.5
-        ##probability_multiplier = -0.1
-        ##preferred_age_difference_growth = 1
-        ##top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
-        ##h = np.exp(probability_multiplier *top ) ;
-        ##return (agent1.likes(agent2))*h
+        preferred_age_difference = (1 - (2*agent1.sex))* -0.5
+        probability_multiplier = -0.1
+        preferred_age_difference_growth = 1
+        top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
+        h = np.exp(probability_multiplier *top ) ;
+        return (agent1.sex ^ agent2.sex)*h
 
         #3
         ##preferred_age_difference = (1 - (2 * agent1.sex)) * -0.5
