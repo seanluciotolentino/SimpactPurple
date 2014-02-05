@@ -557,7 +557,7 @@ def intergenerational_sex_data(s):
                     male_generational[agent] = 1.0
     
     #post process tallies
-    #return (male non-AD, male AD, female non-AD, female AD)
+    #return (male non-AD, male AD, female non-AD, female AD)    
     return (sum(male_generational.values())/len(male_generational),
             sum(male_intergenerational.values())/len(male_intergenerational),
             sum(female_generational.values())/len(female_generational),
@@ -600,8 +600,8 @@ def number_of_partners_data(s):
         positive[group]+=[0,1][relationships[agent]>1]
 
     #return positive/total for each group
-    print "positive",positive
-    print "total", total
+    #print "positive",positive
+    #print "total", total
     return [positive[i]/total[i] for i in range(6)]
         
 def test_distribution(distribution, samplesize = 100):

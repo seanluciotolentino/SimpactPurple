@@ -19,7 +19,7 @@ if __name__ == '__main__':
     for i in range(number_of_replications):
         print "replication",i
         s = Community.Community()
-        s.INITIAL_POPULATION = 200  # scale this up later
+        s.INITIAL_POPULATION = 100  # scale this up later
         s.NUMBER_OF_YEARS = 5.1
         
         #parameters
