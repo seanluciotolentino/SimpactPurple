@@ -215,11 +215,9 @@ class GridQueue():
         #return h
         
         #2
-        preferred_age_difference = (1 - (2*agent1.sex))* -0.5
-        probability_multiplier = -0.1
-        preferred_age_difference_growth = 1
-        top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
-        h = np.exp(probability_multiplier *top ) ;
+        pad = (1 - (2*agent1.sex))* self.preferred_age_difference  # correct for perspective
+        top = abs(age_difference - (pad*self.preferred_age_difference_growth*mean_age) )
+        h = np.exp(self.probability_multiplier * top ) ;
         return (agent1.sex ^ agent2.sex)*h
             
     #Functions for debuging

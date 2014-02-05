@@ -35,6 +35,11 @@ class RelationshipOperator():
             for sex in range(master.SEXES):
                 #make the grid queue
                 gq = GridQueue.GridQueue(top, bottom, sex, len(self.grid_queues))
+                #add hazard parameters to GQ
+                gq.preferred_age_difference = self.master.preferred_age_difference
+                gq.probability_multiplier = self.master.probability_multiplier
+                gq.preferred_age_difference_growth = self.master.preferred_age_difference_growth
+                
                 self.grid_queues.append(gq)
                                         
                 #start a new process for it
