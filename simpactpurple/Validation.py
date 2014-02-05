@@ -7,19 +7,29 @@ Created on Fri Jan 31 11:47:47 2014
 import Community
 import GraphsAndData
 import numpy as np
+import numpy.random as random
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     #%% 0. VALIDATION PARAMETERS    
-    number_of_replications = 5
+    number_of_replications = 1
     
     #%%  1. MAKE SIMULATIONS    
     simulations = []
     for i in range(number_of_replications):
         print "replication",i
         s = Community.Community()
-        s.INITIAL_POPULATION = 300  # scale this up later
-        s.NUMBER_OF_YEARS = 25.1
+        s.INITIAL_POPULATION = 200  # scale this up later
+        s.NUMBER_OF_YEARS = 5.1
+        
+        #parameters
+        s.preferred_age_difference = -0.1
+        s.probability_multiplier = -0.1
+        s.preferred_age_difference_growth = 5
+        
+        s.DURATIONS = lambda: 104*random.exponential(0.9)
+        s.DNP = lambda: random.power(0.2)*(3)
+        
         s.run()
         simulations.append(s)
     
@@ -57,6 +67,7 @@ if __name__ == '__main__':
     plt.subplot(nrows,ncols,1)
     agemixing = np.transpose(np.loadtxt('C:\Users\Lucio\Dropbox\My Documents\Research\Fast HIV Simulations\Data\DataAgeMixing.csv', delimiter=","))
     plt.scatter(agemixing[0], agemixing[1], color='b')
+    plt.plot((15,65),(15,65),'r')  # red line for "perfect mixing"
     plt.xlim(15, 65)
     plt.ylim(15, 65)
     plt.title("Actual", fontsize='16')
@@ -66,6 +77,7 @@ if __name__ == '__main__':
     plt.subplot(nrows,ncols,2)
     agemixing = GraphsAndData.age_mixing_data(simulations[0])
     plt.scatter(agemixing[0], agemixing[1], color='g')
+    plt.plot((15,65),(15,65),'r')  # red line for "perfect mixing"
     plt.xlim(15, 65)
     plt.ylim(15, 65)
     plt.title("Simulated", fontsize='16')
@@ -94,6 +106,7 @@ if __name__ == '__main__':
     ypos = [98.0,2.0,81.4,18.5] # from SA health survey   
     rects = plt.bar(xpos, ypos, width=1, color=[(0.0,0.0,0.2),(0.3,0.3,1.0),(0.0,0.0,0.2),(0.3,0.3,1.0)])
     plt.xticks(xpos,["","Male","","Female"])
+    plt.yticks(range(0,150,20),['0', '20', '40', '60', '80', '100', '',''] )
     plt.ylim(0,150)
     plt.ylabel("Had relationship type (%)")
     plt.legend((rects[0],rects[1]),("Within 5 years of own age", "Partner is 5+ years older"))
@@ -104,9 +117,10 @@ if __name__ == '__main__':
     #simulated
     plt.subplot(nrows,ncols,4)
     xpos = [1,2,4,5]
-    ypos = map(lambda x: 100*round(x,2), GraphsAndData.intergenerational_sex_data(s)) 
+    ypos = map(lambda x: 100*round(x,2)+0.01, GraphsAndData.intergenerational_sex_data(s))  # +0.01 b/c matplotlib doesn't want to plot zero values
     rects = plt.bar(xpos, ypos, width=1, color=[(0.0,0.2,0.0),(0.3,1.0,0.3),(0.0,0.2,0.0),(0.3,1.0,0.3)])
     plt.xticks(xpos,["","Male","","Female"])
+    plt.yticks(range(0,150,20),['0', '20', '40', '60', '80', '100', '',''] )
     plt.ylim(0,150)
     plt.ylabel("Had relationship type (%)")
     plt.legend((rects[0],rects[1]),("Within 5 years of own age", "Partner is 5+ years older"))
@@ -123,6 +137,7 @@ if __name__ == '__main__':
     rects = plt.bar(xpos, ypos, width=1, color=[(0.0,0.0,0.2),(0.1,0.1,0.5),(0.3,0.3,1.0),
                                                 (0.0,0.0,0.2),(0.1,0.1,0.5),(0.3,0.3,1.0)])
     plt.xticks([2.5,6.5],["Male","Female"])
+    plt.yticks(range(0,150,20),['0', '20', '40', '60', '80', '100', '',''] )
     plt.ylim(0,40)
     plt.ylabel("More than one partner (%)")
     plt.legend((rects[0],rects[1],rects[2]),("15-24","25-49",">50"))
@@ -131,11 +146,11 @@ if __name__ == '__main__':
     #simulated
     plt.subplot(nrows,ncols,6)
     xpos = [1,2,3, 5,6,7]  # male, female
-    ypos = map(lambda x: 100*round(x,2), GraphsAndData.number_of_partners_data(s)) 
+    ypos = map(lambda x: 100*round(x,2)+0.01, GraphsAndData.number_of_partners_data(s))  # +0.01 b/c matplotlib doesn't want to plot zero values
     rects = plt.bar(xpos, ypos, width=1, color=[(0.0,0.2,0.0),(0.1,0.5,0.1),(0.3,1.0,0.3),
                                                 (0.0,0.2,0.0),(0.1,0.5,0.1),(0.3,1.0,0.3)])
     plt.xticks([2.5,6.5],["Male","Female"])
-    plt.ylim(0,150)
+    plt.ylim(0,40)
     plt.ylabel("More than one partner (%)")
     plt.legend((rects[0],rects[1],rects[2]),("15-24","25-49",">50"))
     for i in range(len(xpos)):

@@ -5,12 +5,14 @@ from a Simpact object.
 
 import math
 import numpy as np
+import numpy.random as random
 import networkx as nx
 import matplotlib
 import os 
 if os.popen("echo $DISPLAY").read().strip() == '':  # display not set
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 
 def age_mixing_data(s, filename = None):
     """
@@ -105,7 +107,7 @@ def age_mixing_heat_graph(s, grid = 10, filename = None):
         plt.savefig(filename)
         plt.close(fig)
 
-def formation_hazard():
+def formation_hazard(a,b,c):
     """
     Generates an age mixing scatter for many relationships with random
     ages for partners colored by the hazard of formation.
@@ -130,24 +132,25 @@ def formation_hazard():
 #    h = baseline*np.exp(age_difference_factor*age_difference + mean_age_factor*mean_age)
 
     #2) since age_difference = female_age - male_age, this is from male perspective
-#    preferred_age_difference = -0.5
-#    probability_multiplier = -0.1
-#    preferred_age_difference_growth = 1
-#
-#    top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
-#    h = np.exp(probability_multiplier * top)
+    preferred_age_difference = a#-0.1
+    probability_multiplier = b#-0.1
+    preferred_age_difference_growth = c#2
+
+    top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
+    h = np.exp(probability_multiplier * top)
 
     #3) (same as two)
-    preferred_age_difference = -0.5
-    probability_multiplier = -0.1
-    preferred_age_difference_growth = 0.9
-    age_difference_dispersion = -0.01
-    top = abs(age_difference - (preferred_age_difference * preferred_age_difference_growth * mean_age) )
-    bottom = preferred_age_difference * mean_age * age_difference_dispersion
-    h = np.exp(probability_multiplier * (top/bottom)  )
+#    preferred_age_difference = -0.5
+#    probability_multiplier = -0.1
+#    preferred_age_difference_growth = 0.9
+#    age_difference_dispersion = -0.01
+#    top = abs(age_difference - (preferred_age_difference * preferred_age_difference_growth * mean_age) )
+#    bottom = preferred_age_difference * mean_age * age_difference_dispersion
+#    h = np.exp(probability_multiplier * (top/bottom)  )
 
     #make graph
-    fig = plt.figure()
+    plt.ion()
+    plt.figure()
     plt.scatter(male_ages,female_ages,c=h)
     plt.colorbar()
     plt.xlim(15,65)
@@ -542,7 +545,7 @@ def intergenerational_sex_data(s):
             if r[0] is not agent and r[1] is not agent:
                 continue
             
-            if s.age(r[0])-s.age(r[1]) >= 5:
+            if np.abs(s.age(r[0])-s.age(r[1])) >= 5:
                 if agent.sex:            
                     female_intergenerational[agent] = 1.0
                 else:
