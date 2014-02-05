@@ -54,10 +54,10 @@ class Community():
         """
         start = Time.time()  # for timing simulation
         self.start()  # initialize data structures
-        
+        print "running..."
         #mainloop
         for t in range(int(self.NUMBER_OF_YEARS*52)):
-            print "time",t
+            #print "time",t
             self.time = t
             self.step()
             #self.assertions()
