@@ -15,8 +15,8 @@ from numpy.random import uniform as uni
 import sys
 
 if len(sys.argv)>=3:
-    threshold = sys.argv[1] # for accept function -- how close is close enough?
-    n = sys.argv[2]  # how many data points to gather -- the larger the better
+    threshold = int(sys.argv[1]) # for accept function -- how close is close enough?
+    n = int(sys.argv[2])  # how many data points to gather -- the larger the better
 else:
     threshold = 20
     n = 10
