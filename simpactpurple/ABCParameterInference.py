@@ -73,6 +73,7 @@ if __name__ == '__main__':
                 6: lambda: uni(2, 10),          # durations mean age scale 
     }
     posterior = {i:[] for i in prior.keys()}
+    distances = []
     
     #%% 1. Run ABC algorithm
     for i in range(n):
@@ -80,7 +81,7 @@ if __name__ == '__main__':
         print "---Sample", i,"---"
         s = Community.Community()
         # set constants
-        s.INITIAL_POPULATION = 200  # scale this up later?
+        s.INITIAL_POPULATION = 500  # scale this up later?
         s.NUMBER_OF_YEARS = 10
         
         # set parameters
@@ -98,8 +99,8 @@ if __name__ == '__main__':
         
         #3. Evaluate and accept/reject based on distance function
         print "  parameters"
-        print "PAD\tProbMult\tPADgrowth\tDNPscale\tDURAscale"
-        print "\t".join(map(lambda x: str(round(x,2)),[s.preferred_age_difference, s.probability_multiplier, s.preferred_age_difference_growth, s.DNPscale, s.DURATIONSscale]))
+        print "PAD_\tProbMult\tPADgrowth\tDNPscale\tDURAexpo\tDURAscale"
+        print "\t".join(map(lambda x: str(round(x,2)),[s.preferred_age_difference, s.probability_multiplier, s.preferred_age_difference_growth, s.DNPscale, s.DURATIONSexpo, s.DURATIONSscale]))
         print "  intergenerational sex" 
         print "     s:", map(lambda x: round(100*x,1), GraphsAndData.intergenerational_sex_data(s))
         print "     a:", [98.0, 2.0, 81.4, 18.5]
@@ -116,6 +117,7 @@ if __name__ == '__main__':
             posterior[4].append(s.DNPscale)
             posterior[5].append(s.DURATIONSexpo)
             posterior[6].append(s.DURATIONSscale)
+            distances.append(distance(s))
         else:
             print "rejected."
     
