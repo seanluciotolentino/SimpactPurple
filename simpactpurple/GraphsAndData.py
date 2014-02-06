@@ -404,7 +404,6 @@ def relationship_durations(s, filename = None):
     plt.ioff()
     fig = plt.figure()
     plt.hist(durations, normed = True)
-    plt.xlim(0,52)
     plt.xlabel("Relationship Duration (weeks)")
     plt.ylabel("Freqency (count)")
     plt.title("Relationship Durations")

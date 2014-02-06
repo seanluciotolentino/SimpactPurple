@@ -19,45 +19,49 @@ if __name__ == '__main__':
     for i in range(number_of_replications):
         print "replication",i
         s = Community.Community()
-        s.INITIAL_POPULATION = 100  # scale this up later
+        s.INITIAL_POPULATION = 200  # scale this up later
         s.NUMBER_OF_YEARS = 5.1
         
         #parameters
-        s.preferred_age_difference = -0.1
-        s.probability_multiplier = -0.1
-        s.preferred_age_difference_growth = 5
+        s.preferred_age_difference = -0.13#-0.1
+        s.probability_multiplier = -0.27#-0.1
+        s.preferred_age_difference_growth = 0.21#5
         
-        s.DURATIONS = lambda: 104*random.exponential(0.9)
-        s.DNP = lambda: random.power(0.2)*(3)
+        #s.DURATIONS = lambda: 104*random.exponential(0.9)
+        s.DURATIONSexpo = 0.9
+        s.DURATIONSscale = 20
+        s.DURATIONS = lambda a1,a2: np.mean((s.age(a1),s.age(a2)))*s.DURATIONSscale*random.exponential(s.DURATIONSexpo)
+        s.DNP = lambda: random.power(0.2)*(2)
         
         s.run()
         simulations.append(s)
     
     ## 2. MAKE FIGURES
     #%% Figure 1 -- Prevalence    
-    plt.ion()
-    plt.figure()
-    
-    #actual
-    plt.plot([0.2, 0.5, 1.0, 1.9, 3.1, 4.8, 6.7, 8.8, 10.8, 12.6, 14.1, 15.3,
-              16.1, 16.6, 16.9, 17.1, 17.2, 17.3, 17.5, 17.6, 17.6, 17.8, 
-              17.9])  # Spectrum adult prevalence data, 1990-2012, 2013 UNAIDS Global Report
-    
-    #simulated
-    prevalence_cloud = np.array([GraphsAndData.prevalence_data(simulations[0])[0::52]])*100
-    plt.plot(prevalence_cloud[0], '0.75')
-    for s in simulations[1:]:
-        prev = [GraphsAndData.prevalence_data(s)[0::52]*100]
-        prevalence_cloud = np.append(prevalence_cloud, prev, axis=0)
-        plt.plot(prev[0], '0.75')
-    plt.plot(np.mean(prevalence_cloud, axis=0),'r')
-    
-    #graph options
-    plt.title("HIV Prevalence")
-    plt.xlabel("Time (years)")
-    plt.ylabel("HIV Prevalence (%)")
-    
+#    plt.ion()
+#    plt.figure()
+#    
+#    #actual
+#    plt.plot([0.2, 0.5, 1.0, 1.9, 3.1, 4.8, 6.7, 8.8, 10.8, 12.6, 14.1, 15.3,
+#              16.1, 16.6, 16.9, 17.1, 17.2, 17.3, 17.5, 17.6, 17.6, 17.8, 
+#              17.9])  # Spectrum adult prevalence data, 1990-2012, 2013 UNAIDS Global Report
+#    
+#    #simulated
+#    prevalence_cloud = np.array([GraphsAndData.prevalence_data(simulations[0])[0::52]])*100
+#    plt.plot(prevalence_cloud[0], '0.75')
+#    for s in simulations[1:]:
+#        prev = [GraphsAndData.prevalence_data(s)[0::52]*100]
+#        prevalence_cloud = np.append(prevalence_cloud, prev, axis=0)
+#        plt.plot(prev[0], '0.75')
+#    plt.plot(np.mean(prevalence_cloud, axis=0),'r')
+#    
+#    #graph options
+#    plt.title("HIV Prevalence")
+#    plt.xlabel("Time (years)")
+#    plt.ylabel("HIV Prevalence (%)")
+#    
     #%% Figure 2 -- Actual versus Simulated
+    plt.ion()
     plt.figure()
     nrows = 3
     ncols = 2
