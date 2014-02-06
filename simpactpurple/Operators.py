@@ -168,7 +168,7 @@ class RelationshipOperator():
         kind of relationship they would form (i.e., transitory, casual,
         marriage). 
         """
-        return self.master.DURATIONS()  # initial naive duration calculation
+        return self.master.DURATIONS(agent1, agent2)  # initial naive duration calculation
 
     def update_grid_queue_for(self, agent):
         """

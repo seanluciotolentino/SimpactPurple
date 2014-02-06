@@ -30,7 +30,7 @@ class Community():
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
         self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
-        self.DURATIONS = lambda: 52*random.exponential(0.9)
+        self.DURATIONS = lambda a1, a2: 52*random.exponential(0.9)
         
         #infection operator
         self.INFECTIVITY = 0.01
