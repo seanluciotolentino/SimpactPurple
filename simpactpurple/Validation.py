@@ -3,6 +3,9 @@
 Created on Fri Jan 31 11:47:47 2014
 
 @author: Lucio
+
+Script for testing parameter inputs
+
 """
 import Community
 import GraphsAndData
@@ -19,19 +22,22 @@ if __name__ == '__main__':
     for i in range(number_of_replications):
         print "replication",i
         s = Community.Community()
-        s.INITIAL_POPULATION = 200  # scale this up later
-        s.NUMBER_OF_YEARS = 5.1
+        s.INITIAL_POPULATION = 500  # scale this up later
+        s.NUMBER_OF_YEARS = 20
         
         #parameters
-        s.preferred_age_difference = -0.13#-0.1
-        s.probability_multiplier = -0.27#-0.1
-        s.preferred_age_difference_growth = 0.21#5
+        p = map(float,"-0.21	-0.31	0.95	1.39	4.08	8.52".split("\t"))
+
+        s.preferred_age_difference = p[0]
+        s.probability_multiplier = p[1]
+        s.preferred_age_difference_growth = p[2]
         
-        #s.DURATIONS = lambda: 104*random.exponential(0.9)
-        s.DURATIONSexpo = 0.9
-        s.DURATIONSscale = 20
+        s.DNPscale = p[3]
+        s.DNP = lambda: random.power(0.2)*s.DNPscale
+
+        s.DURATIONSexpo = p[4]
+        s.DURATIONSscale = p[5]
         s.DURATIONS = lambda a1,a2: np.mean((s.age(a1),s.age(a2)))*s.DURATIONSscale*random.exponential(s.DURATIONSexpo)
-        s.DNP = lambda: random.power(0.2)*(2)
         
         s.run()
         simulations.append(s)
@@ -121,7 +127,7 @@ if __name__ == '__main__':
     #simulated
     plt.subplot(nrows,ncols,4)
     xpos = [1,2,4,5]
-    ypos = map(lambda x: 100*round(x,2)+0.01, GraphsAndData.intergenerational_sex_data(s))  # +0.01 b/c matplotlib doesn't want to plot zero values
+    ypos = map(lambda x: round(x*100,2), GraphsAndData.intergenerational_sex_data(s))
     rects = plt.bar(xpos, ypos, width=1, color=[(0.0,0.2,0.0),(0.3,1.0,0.3),(0.0,0.2,0.0),(0.3,1.0,0.3)])
     plt.xticks(xpos,["","Male","","Female"])
     plt.yticks(range(0,150,20),['0', '20', '40', '60', '80', '100', '',''] )
@@ -141,7 +147,6 @@ if __name__ == '__main__':
     rects = plt.bar(xpos, ypos, width=1, color=[(0.0,0.0,0.2),(0.1,0.1,0.5),(0.3,0.3,1.0),
                                                 (0.0,0.0,0.2),(0.1,0.1,0.5),(0.3,0.3,1.0)])
     plt.xticks([2.5,6.5],["Male","Female"])
-    plt.yticks(range(0,150,20),['0', '20', '40', '60', '80', '100', '',''] )
     plt.ylim(0,40)
     plt.ylabel("More than one partner (%)")
     plt.legend((rects[0],rects[1],rects[2]),("15-24","25-49",">50"))
@@ -150,7 +155,7 @@ if __name__ == '__main__':
     #simulated
     plt.subplot(nrows,ncols,6)
     xpos = [1,2,3, 5,6,7]  # male, female
-    ypos = map(lambda x: 100*round(x,2)+0.01, GraphsAndData.number_of_partners_data(s))  # +0.01 b/c matplotlib doesn't want to plot zero values
+    ypos = map(lambda x: round(x*100,2), GraphsAndData.number_of_partners_data(s))
     rects = plt.bar(xpos, ypos, width=1, color=[(0.0,0.2,0.0),(0.1,0.5,0.1),(0.3,1.0,0.3),
                                                 (0.0,0.2,0.0),(0.1,0.5,0.1),(0.3,1.0,0.3)])
     plt.xticks([2.5,6.5],["Male","Female"])

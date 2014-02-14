@@ -519,16 +519,20 @@ def total_lifetime_partners(s, filename = None):
         plt.savefig(filename)
         plt.close(fig)
         
-def intergenerational_sex_data(s):
+def intergenerational_sex_data(s, year = None):
     """
     Generates percentages of men and women 15-19 who have had intergenerational
     relationships. Inspired by 2008 SA Health Survey, used for validation 
     graphs.  Note: current implementation is slow and ugly, but intuitive. 
     """
-    male_intergenerational = {}
-    male_generational = {}
-    female_intergenerational = {}
-    female_generational = {}
+    original_time = s.time  # place holder
+    if year is not None:  # allow user to specify a year              
+        s.time = year*52.0
+        
+    male_intergenerational = {0:0}
+    male_generational = {0:0}
+    female_intergenerational = {0:0}
+    female_generational = {0:0}
     for agent in s.agents.values():
         if (s.age(agent) >= 20):
             continue  # only query < 20 y.o.
@@ -543,6 +547,8 @@ def intergenerational_sex_data(s):
         for r in s.relationships:  
             if r[0] is not agent and r[1] is not agent:
                 continue
+            if r[2] > s.time:  # happened after queried time
+                continue
             
             if np.abs(s.age(r[0])-s.age(r[1])) >= 5:
                 if agent.sex:            
@@ -556,18 +562,22 @@ def intergenerational_sex_data(s):
                     male_generational[agent] = 1.0
     
     #post process tallies
-    #return (male non-AD, male AD, female non-AD, female AD)    
+    s.time = original_time 
     return (sum(male_generational.values())/len(male_generational),
             sum(male_intergenerational.values())/len(male_intergenerational),
             sum(female_generational.values())/len(female_generational),
             sum(female_intergenerational.values())/len(female_intergenerational) )
 
-def number_of_partners_data(s):
+def number_of_partners_data(s, year = None):
     """
     Generates percentages of men and women who have had multiple partners in 
     the past 12 months. Inspired by 2008 SA Health Survey, used for validation 
     graphs.  Note: current implementation is slow and ugly, but intuitive. 
     """
+    original_time = s.time  # place holder
+    if year is not None:  # allow user to specify a year         
+        s.time = year*52.0
+        
     now = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS))) 
     relationships = {}
     for agent in s.agents.values():  # for each agent...
@@ -578,7 +588,7 @@ def number_of_partners_data(s):
         for r in s.relationships:  # ...go through and count relationships from the past year
             if r[0] is not agent and r[1] is not agent:
                 continue
-            if r[3] <= now-52:  #only relationships from past 12 months
+            if r[3] <= now-52 or r[2]> now:  #only relationships from past 12 months
                 continue   
             #print "   relationship found", r[2],r[3]
             relationships[agent]+=1
@@ -597,17 +607,16 @@ def number_of_partners_data(s):
         #print "sex",agent.sex,"age",s.age(agent), " group --> ", group, relationships[agent], "| total[group]", total[group], "positive[group]", positive[group]
         total[group]+=1.0
         positive[group]+=[0,1][relationships[agent]>1]
-
+        
+    s.time = original_time 
     #return positive/total for each group
-    #print "positive",positive
-    #print "total", total
     return [positive[i]/total[i] for i in range(6)]
         
 def test_distribution(distribution, samplesize = 100):
     data = [distribution() for i in range(samplesize)]
     
     fig = plt.figure()
-    plt.hist(data)
+    plt.hist(data, normed=True)
     plt.title("Test Distribution")
     plt.xlabel("Bins")
     plt.ylabel("Frequency")
