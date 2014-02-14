@@ -117,8 +117,8 @@ if __name__ == '__main__':
         print "---Sample", i,"---"
         s = Community.Community()
         # set constants
-        s.INITIAL_POPULATION = 100  # scale this up later?
-        s.NUMBER_OF_YEARS = 10
+        s.INITIAL_POPULATION = 500  # scale this up later?
+        s.NUMBER_OF_YEARS = 15
         
         # set parameters
         s.preferred_age_difference = prior[1]()
@@ -147,10 +147,10 @@ if __name__ == '__main__':
         f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008       
         
         f.write(str(distance(s))+",")
-        f.write(str(int(distance(s)<threshold)+"\n")        
+        f.write(str(int(distance(s)<threshold)+"\n"))
         
     # end abc for-loop    
-    f.close()    
+    f.close()  
     
     
     
