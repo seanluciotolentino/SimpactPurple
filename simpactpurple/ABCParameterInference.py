@@ -147,7 +147,7 @@ if __name__ == '__main__':
         f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008       
         
         f.write(str(distance(s))+",")
-        f.write(str(int(distance(s)<threshold)+"\n"))
+        f.write(str(int(distance(s)<threshold))+"\n")
         
     # end abc for-loop    
     f.close()  
