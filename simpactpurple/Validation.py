@@ -4,7 +4,7 @@ Created on Fri Jan 31 11:47:47 2014
 
 @author: Lucio
 
-Script for testing parameter inputs
+Script for testing a specific set of parameter inputs
 
 """
 import Community
