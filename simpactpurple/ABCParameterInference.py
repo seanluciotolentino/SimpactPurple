@@ -5,9 +5,10 @@ Created on Wed Feb 05 11:23:46 2014
 @author: Lucio
 
 An implementation of the approximate bayesian computation (ABC) for 
-parameter inference. Writes to a file parameter, simulation output for those
-parameters, and their distance to the survey data. Processing of the file
-is performed by another script, ABCOutputProcessing.
+parameter inference. Writes to a file the set of parameters, simulation
+output for those parameters, and their distance to the survey data. 
+Processing of the file (to generate graphs) is performed by another script,
+ABCOutputProcessing.
 
 """
 import Community
@@ -81,12 +82,12 @@ if __name__ == '__main__':
     
     #file to write
     f = open(filename,'w')
-    #rows 0-6
+    #rows 0-7
     f.write("#,ProbMult, PAD, PADgrowth, DNPscale, DNPshape, DURAscale, DURAshape,")  # parameters
-    #rows 7-10, 11-14    
+    #rows 8-11, 12-15    
     f.write("NonInterMale05,InterMale05,NonInterFemale05,InterFemale05,")  # intergernational sex 2005
     f.write("NonInterMale08,InterMale08,NonInterFemale08,InterFemale08,")  # intergernational sex 2008
-    #rows 15-20,21-26,27-32
+    #rows 16-21,22-27,28-33
     f.write("MP15-24Male02,MP15-24Female02,MP25-49Male02,MP25-49Female02,MP50+Male02,MP50+Female02,")  # multiple partners 02
     f.write("MP15-24Male05,MP15-24Female05,MP25-49Male05,MP25-49Female05,MP50+Male05,MP50+Female05,")  # multiple partners 05
     f.write("MP15-24Male08,MP15-24Female08,MP25-49Male08,MP25-49Female08,MP50+Male08,MP50+Female08,")  # multiple partners 08
@@ -100,7 +101,7 @@ if __name__ == '__main__':
         s = Community.Community()
         # set constants
         s.INITIAL_POPULATION = 1000  # scale this up later?
-        s.NUMBER_OF_YEARS = 15
+        s.NUMBER_OF_YEARS = 18
         
         # set parameters
         s.probability_multiplier = prior[1]()
