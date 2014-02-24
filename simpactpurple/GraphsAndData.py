@@ -534,7 +534,7 @@ def intergenerational_sex_data(s, year = None):
     female_intergenerational = {0:0}
     female_generational = {0:0}
     for agent in s.agents.values():
-        if (s.age(agent) >= 20):
+        if (s.age(agent)<15) or (s.age(agent) >= 20):
             continue  # only query < 20 y.o.
 
         if agent.sex:            
