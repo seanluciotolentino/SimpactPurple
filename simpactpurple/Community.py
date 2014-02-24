@@ -137,7 +137,7 @@ class Community():
         #2. Form and dissolve relationships
         self.relationship_operator.step()
 
-        #2. HIV transmission
+        #3. HIV transmission
         self.infection_operator.step()
         
     def cleanup(self):
