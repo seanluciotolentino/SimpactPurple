@@ -16,8 +16,8 @@ import GraphsAndData
 
 if __name__ == '__main__':
     s = Community.Community()
-    s.INITIAL_POPULATION = 1000
-    s.NUMBER_OF_YEARS = 30
+    s.INITIAL_POPULATION = 100
+    s.NUMBER_OF_YEARS = 15
     s.run(timing = True)
 
     #GRAPH VERIFICATION

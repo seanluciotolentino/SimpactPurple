@@ -3,12 +3,28 @@ The main module a simulation of a community.
 """
 
 import Operators
-import Agent
 import networkx as nx
 import time as Time  # I use the keyword time
 import numpy as np
 import numpy.random as random
-import multiprocessing
+
+class Agent():
+    def __init__(self, attributes):
+        """
+        all these variables are set in the make_population. Initialized here
+        as None to emphasis their existence
+        """
+        self.born = None
+        self.sex = None
+        self.dnp = None
+        self.grid_queue = None;
+    
+        self.time_of_infection = np.Inf 
+        self.last_match = -np.Inf
+        self.attributes = attributes
+        
+    def __str__(self):
+        return "Name: " + str(self.attributes["NAME"])
 
 class Community():
     """
@@ -110,7 +126,7 @@ class Community():
         self.AGENT_ATTRIBUTES["TIME_REMOVED"] = np.Inf
         for i in range(size):
             #make agent and add some attributes
-            a = Agent.Agent(self.AGENT_ATTRIBUTES.copy())
+            a = Agent(self.AGENT_ATTRIBUTES.copy())
             a.attributes["NAME"] = len(self.agents)  # not i b/c replacement
             a.born = self.BORN()
             a.sex = self.SEX()
