@@ -4,7 +4,9 @@ Created on Wed Oct 23 14:16:27 2013
 
 @author: Lucio
 
-Program for timing the execution time of SimpactPurple with clusters. 
+Program for timing the execution time of SimpactPurple with clusters. Specifically,
+this script should be run on the vinci cluster, but it's not appropriate for
+helium.
 
 """
 
