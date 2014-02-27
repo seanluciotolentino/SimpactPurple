@@ -11,7 +11,7 @@ is the initial test script for proof of concept.
 
 from mpi4py import MPI
 import CommunityDistributed
-import GraphAndData
+import GraphsAndData
 
 print "hello from", MPI.Get_processor_name()
 
@@ -20,6 +20,6 @@ comm = MPI.COMM_WORLD
 c = CommunityDistributed.CommunityDistributed(comm)
 c.run()
 
-GraphsAndData.formed_relations_graph(s,filename='formed_relations'+MPI.Get_processor_name'+.png')
-GraphsAndData.sexual_network_graph(s,filename='sexual_network'+MPI.Get_processor_name'+.png')
+GraphsAndData.formed_relations_graph(s,filename='formed_relations'+MPI.Get_processor_name+'.png')
+GraphsAndData.sexual_network_graph(s,filename='sexual_network'+MPI.Get_processor_name+'.png')
 

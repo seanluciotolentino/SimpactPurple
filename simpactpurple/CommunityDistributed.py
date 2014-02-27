@@ -34,7 +34,7 @@ class CommunityDistributed(Community.Community):
         
         #infection operator
         self.INFECTIVITY = 0.01
-        self.INTIIAL_PREVALENCE = 0.01
+        self.INTIIAL_PREVALENCE = 0  # while there's not infection operator...
         self.SEED_TIME = 0  # in years        
 
         #time operator
@@ -60,15 +60,16 @@ class CommunityDistributed(Community.Community):
         #3. HIV transmission
         #self.infection_operator.step()
 
-    def make_population(self):
+    def make_population(self, size):
         if self.primary:
-            Community.Community.make_population(self, self.INITIAL_POPULATION)
+            Community.Community.make_population(self, size)
             self.comm.send('done', dest = self.other)
         else:
-            agent = self.master.comm.recv(source = self.master.other)
+            agent = self.comm.recv(source = self.other)
             while agent != 'done':
-                self.update_grid_queue_for(agent)
-                agent = self.master.comm.recv(source = self.master.other)
+		self.agents[agent.attributes["NAME"]] = agent
+                self.relationship_operator.update_grid_queue_for(agent)
+                agent = self.comm.recv(source = self.other)
     
     def make_operators(self):
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)

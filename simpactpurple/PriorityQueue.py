@@ -40,6 +40,9 @@ class PriorityQueue():
 
     def empty(self):
         return not len(self.heap)
+
+    def length(self):
+        return len(self.heap)
         
     def __len__(self):
         return len(self.heap)
