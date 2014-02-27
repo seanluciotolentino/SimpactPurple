@@ -57,9 +57,17 @@ class RelationshipOperator(Operators.RelationshipOperator):
                 agent1 = self.master.agents[relationship[1]]
                 self.add_relationship((agent0, agent1))
                 relationship = self.master.comm.recv(source = self.master.other)
+            self.master.comm.send('done', dest = self.master.other)
         else:
             #finish sending relationships to other community
             self.master.comm.send('done', dest = self.master.other)
+            #listen for agents to remove
+            agent = self.master.comm.recv(source = self.master.other)
+            while agent != 'done':
+                agent = self.master.agents[agent.attributes["NAME"]]
+                self.pipes[agent.grid_queue].send("remove")
+                self.pipes[agent.grid_queue].send(agent.attributes["NAME"])
+                agent = self.master.comm.recv(source = self.master.other)
     
     def recruit(self):
         """
@@ -125,11 +133,17 @@ class RelationshipOperator(Operators.RelationshipOperator):
         suitor, match = relationship
         self.form_relationship(suitor, match) 
         if self.master.network.degree(suitor) >= suitor.dnp:
-            self.pipes[suitor.grid_queue].send("remove")
-            self.pipes[suitor.grid_queue].send(suitor.attributes["NAME"])
+            if suitor.attributes["LOC"][0][0] > 0.5:
+                self.master.comm.send(suitor, dest = self.master.other)
+            else:
+                self.pipes[suitor.grid_queue].send("remove")
+                self.pipes[suitor.grid_queue].send(suitor.attributes["NAME"])
         if self.master.network.degree(match) >= match.dnp:
-            self.pipes[match.grid_queue].send("remove")
-            self.pipes[match.grid_queue].send(match.attributes["NAME"])
+            if match.attributes["LOC"][0][0] > 0.5:
+                self.master.comm.send(match, dest = self.master.other)
+            else:
+                self.pipes[match.grid_queue].send("remove")
+                self.pipes[match.grid_queue].send(suitor.attributes["NAME"])
         
     def update_grid_queue_for(self, agent):
         """
