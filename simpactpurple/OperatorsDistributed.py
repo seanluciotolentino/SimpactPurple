@@ -24,6 +24,15 @@ class RelationshipOperator(Operators.RelationshipOperator):
         """
         Take a single time step in the simulation. 
         """
+	#-1. Update times of grid queue 
+	# Supposed to be time operator's job but it's disabled right now
+	for gq in self.master.relationship_operator.grid_queues:
+	    gq.time = self.master.time
+	pipes = self.master.relationship_operator.pipes.values()
+	for pipe in pipes:
+	    pipe.send("time")
+	    pipe.send(self.master.time)
+
         #0. Dissolve relationships
         if self.master.primary:
             # sends agents back to right grid queues
@@ -46,6 +55,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
             agent = self.master.comm.recv(source = self.master.other)
             
         #2. Match
+	#print 'main queue:',self.main_queue.length()
         while(not self.main_queue.empty()):
             self.match()
         #2.1 communicate
@@ -82,12 +92,16 @@ class RelationshipOperator(Operators.RelationshipOperator):
         agent_name = self.pipes[gq.my_index].recv()
         #print "recruited",agent_name
         if agent_name is not None:
+	    #print gq.my_index,'returned',agent_name
             agent = self.master.agents[agent_name]
             if random.random() < 0.5:
                 self.main_queue.push(gq.my_index, agent)
             else:
                 self.master.comm.send(agent, dest = self.master.other)
-                
+	else:
+	    #print '*** None received in recruit from',gq.my_index
+            pass
+    
     def match(self):
         """
         Pop a suitor off the main queue and try to match him or her.
@@ -98,7 +112,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         """
         #1. get next suitor and request matches for him/her from grid queues
         suitor = self.main_queue.pop()[1]
-
+	
         #1.2 Parallel, send enquiries via pipe
         for pipe in self.pipes.values():
             pipe.send("enquire")
@@ -144,7 +158,13 @@ class RelationshipOperator(Operators.RelationshipOperator):
             else:
                 self.pipes[match.grid_queue].send("remove")
                 self.pipes[match.grid_queue].send(suitor.attributes["NAME"])
-        
+    def form_relationship(self, agent1, agent2):
+	#print "forming relationship", agent1.attributes["NAME"], agent2.attributes["NAME"]
+	Operators.RelationshipOperator.form_relationship(self, agent1, agent2)
+
+    def dissolve_relationship(self, agent1, agent2):
+	#print "dissolving relationship", agent1.attributes["NAME"], agent2.attributes["NAME"]
+	Operators.RelationshipOperator.dissolve_relationship(self, agent1, agent2)
     def update_grid_queue_for(self, agent):
         """
         Find the appropriate grid queue for agent. Called by 
@@ -162,8 +182,11 @@ class RelationshipOperator(Operators.RelationshipOperator):
             return
 
         #add to new grid queue
-        grid_queue = [gq for gq in self.grid_queues if gq.accepts(agent)][agent.sex]
-        agent.grid_queue = grid_queue.my_index
+	if agent.grid_queue is None:
+	    print 'agent',agent.attributes["NAME"],'time:',self.master.time,'gq:',agent.grid_queue,'age:',self.master.age(agent)
+            grid_queue = [gq for gq in self.grid_queues if gq.accepts(agent)][agent.sex]
+            agent.grid_queue = grid_queue.my_index
+	    
         self.pipes[agent.grid_queue].send("add")
         self.pipes[agent.grid_queue].send(agent)
 #

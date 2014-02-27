@@ -16,13 +16,13 @@ class CommunityDistributed(Community.Community):
         self.other = (self.rank+1)%2
         
         #MODEL PARAMETERS
-        self.NUMBER_OF_YEARS = 5
+        self.NUMBER_OF_YEARS = 10
         
         #MODEL OPERATORS
         #hazard
         self.preferred_age_difference = -0.1
         self.probability_multiplier = -0.1
-        self.preferred_age_difference_growth = 5
+        self.preferred_age_difference_growth = 0.1
         
         #relationship operator
         self.SEXES = 2
@@ -30,7 +30,7 @@ class CommunityDistributed(Community.Community):
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
         self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
-        self.DURATIONS = lambda a1, a2: 52*random.exponential(0.9)
+        self.DURATIONS = lambda a1, a2: 5*random.exponential(0.9)
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -41,7 +41,7 @@ class CommunityDistributed(Community.Community):
         self.time = 0
                 
         #MODEL POPULATION
-        self.INITIAL_POPULATION = 100
+        self.INITIAL_POPULATION = 300
         self.AGENT_ATTRIBUTES = {}
         self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
         self.SEX = lambda: random.randint(self.SEXES)
@@ -53,7 +53,8 @@ class CommunityDistributed(Community.Community):
         """ 
         #1. Time progresses
         #self.time_operator.step()        
-        
+	#print '--------------time',self.time,'------------------'
+	#self.debug()        
         #2. Form and dissolve relationships
         self.relationship_operator.step()
 
