@@ -13,26 +13,14 @@ helium.
 import os
 import time
 
-population_ranges = range(1000,1001,1000)
-#population_ranges = range(1000,5001,1000)
-#population_ranges = range(100,500,100)
+population_ranges = range(1000,5001,1000)
 
-
-#one node
-print "one node, multiple communities"
-for pop in population_ranges:
-    break
-    start = time.time()
-    #success = "exit" in os.popen("mpiexec -n 5 python MainMPI.py " + str(pop)).read()
-    success = "exit" in os.popen("mpiexec -n 9 python MainAlt.py " + str(pop)).read()
-    print success, pop, time.time()-start
-
-#one node
+#two node
 print "multiple nodes, multiple communities"
 for pop in population_ranges:
     #break
     start = time.time()
-    success = "exit" in os.popen("mpiexec -n 3 -host v1,v2,v3 python MainAlt.py " + str(pop)).read()
+    success = "exit" in os.popen("mpiexec -n 2 -host v2,v3 python MainDistributed.py " + str(pop)).read()
     print success, pop, time.time()-start
     
 #one node

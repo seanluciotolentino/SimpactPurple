@@ -12,14 +12,17 @@ is the initial test script for proof of concept.
 from mpi4py import MPI
 import CommunityDistributed
 import GraphsAndData
+import sys
 
 print "hello from", MPI.Get_processor_name(),"rank",MPI.COMM_WORLD.Get_rank()
 name = MPI.Get_processor_name()
 #MPI variables
 comm = MPI.COMM_WORLD
 c = CommunityDistributed.CommunityDistributed(comm)
+c.INITIAL_POPULATION = int(sys.argv[1])
 c.run()
 
-GraphsAndData.formed_relations_graph(c,filename='formed_relations'+name+'.png')
-GraphsAndData.sexual_network_graph(c,filename='sexual_network'+name+'.png')
+#GraphsAndData.formed_relations_graph(c,filename='formed_relations'+name+'.png')
+#GraphsAndData.sexual_network_graph(c,filename='sexual_network'+name+'.png')
 
+print MPI.Get_processor_name(), "exit"
