@@ -1,95 +1,52 @@
 """
-Module for all of the default operators.
+Module for operators used in simulation in which communities are paritioned
+based on location.
 """
 
 import Queue
 import numpy.random as random
+import numpy as np
 import GridQueue
 import multiprocessing
 import PriorityQueue
+import Operators
 import sys
 
-class RelationshipOperator():
-    """
-    Controls the formation and dissolution of relationships between agents. At
-    initialization, the relationship operator creates the grid queues it will
-    need to hold agent, and starts their functioning in seperate processes. Each
-    time step, the relationship operator does three things:
 
-       1. Dissolve relationships that have exceeded their duration
-       2. Recruit from the grid queues into the main queue
-       3. Iterate through main queue, attempting to match each suitor   `
-          at the top of the queue.    
+class RelationshipOperator(Operators.RelationshipOperator):
+
+    """
+    A proof-of-concept implementation of relationship operator. More
+    work is necessary in order to generalize this model.
     """
 
-    def __init__(self, master):
-        self.master = master
-        self.main_queue = PriorityQueue.PriorityQueue()
-        self.grid_queues = []
-        
-        #make Grid Queues:
-        self.pipes = {}
-        for age in range(master.MIN_AGE, master.MAX_AGE, master.BIN_SIZE):
-            bottom = age
-            top = age+master.BIN_SIZE
-            for sex in range(master.SEXES):
-                #make the grid queue
-                gq = GridQueue.GridQueue(top, bottom, sex, len(self.grid_queues))
-                #add hazard parameters to GQ
-                gq.preferred_age_difference = self.master.preferred_age_difference
-                gq.probability_multiplier = self.master.probability_multiplier
-                gq.preferred_age_difference_growth = self.master.preferred_age_difference_growth
-                
-                self.grid_queues.append(gq)
-                                        
-                #start a new process for it
-                pipe_top, pipe_bottom = multiprocessing.Pipe()
-                p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))#, semaphore))
-                p.start()
-                self.pipes[gq.my_index] = pipe_top                       
-                                    
-        master.NUMBER_OF_GRID_QUEUES = len(self.grid_queues)
-                        
     def step(self):
         """
         Take a single time step in the simulation. 
         """
         #0. Dissolve relationships
-        self.update()
+        if self.master.primary:
+            self.update()
         
-        #1. Recruit
+        #1. Recruit AND SWAP
         for i in range(int(self.master.MAIN_QUEUE_MAX * len(self.master.agents))):  # *** do this better
             self.recruit()
+        self.master.comm.send(self.main_queue[:0.5*len(self.main_queue)], dest = self.master.other)
+        self.main_queue+=self.master.comm.recv(source = self.master.other)
             
         #2. Match
         while(not self.main_queue.empty()):
             self.match()
-
-    def update(self):
-        """
-        Decrement duration of relationships by 1 week,
-        remove relationships that have expired.
-        """
-        network = self.master.network
-        relationships = network.edges() 
-        for r in relationships:
-            network.get_edge_data(r[0], r[1])["duration"] -= 1
-            if(network.get_edge_data(r[0], r[1])["duration"] < 0):
-                self.dissolve_relationship(r[0], r[1])
-
-    def recruit(self):
-        """
-        Pick a random grid queue and send a request for a recruit. Recruited
-        individuals are automatically added to the self.main_queue.
-        """
-        gq = self.grid_queues[random.randint(len(self.grid_queues))]
-        self.pipes[gq.my_index].send("recruit")
-        agent_name = self.pipes[gq.my_index].recv()
-        #print "recruited",agent_name
-        if agent_name is not None:
-            agent = self.master.agents[agent_name]
-            self.main_queue.push(gq.my_index, agent)
-            
+        #2.1
+        if self.master.primary:
+            relationship = self.master.comm.recv(source = self.master.other)
+            while relationship != 'done':
+                self.add_relationship(relationship)
+                relationship = self.master.comm.recv(source = self.master.other)
+        else:
+            self.master.comm.send('done', dest = self.master.other)
+        
+                
     def match(self):
         """
         Pop a suitor off the main queue and try to match him or her. 
@@ -97,15 +54,7 @@ class RelationshipOperator():
         #1. get next suitor and request matches for him/her from grid queues
         suitor = self.main_queue.pop()[1]
 
-        #print "======"
-        #print "suitor:", suitor        
-
-        #1.1 Return if matched
-        if self.master.network.degree(suitor) >= suitor.dnp:
-            #print "  -suitor is no longer looking"
-            return
-
-        #1.6 Parallel, send enquiries via pipe
+        #1.2 Parallel, send enquiries via pipe
         for pipe in self.pipes.values():
             pipe.send("enquire")
             pipe.send(suitor)
@@ -114,17 +63,12 @@ class RelationshipOperator():
 
         
         #2. Suitor flips coins with potential matches
-        #print "matches:",[m.attributes["NAME"] for m in matches]
         if(not matches): #no matches
-            #print "   -Suitor had not matches"
             return
-            
         pq = Queue.PriorityQueue()
         while(matches):
             match = matches.pop()
-            #calc hazard (checking for pre-exisiting edge)
-            hazard = int(not self.master.network.has_edge(suitor, match))\
-                    *self.master.hazard(suitor, match)
+            hazard = self.master.hazard(suitor, match)  # check for pre-exisiting edge?
             r = random.random()
             decision = int(r < hazard)
             pq.put((-decision, match))
@@ -134,49 +78,21 @@ class RelationshipOperator():
         match = top[1]
         accept = top[0]
         if accept:
-            #print "   -Suitor choose",match
-            self.form_relationship(suitor, match) 
-            if self.master.network.degree(suitor) >= suitor.dnp:
-                self.pipes[suitor.grid_queue].send("remove")
-                self.pipes[suitor.grid_queue].send(suitor.attributes["NAME"])
-            if self.master.network.degree(match) >= match.dnp:
-                self.pipes[match.grid_queue].send("remove")
-                self.pipes[match.grid_queue].send(match.attributes["NAME"])
-        else:
-            #print "   -Suitor had no luck flipping coins"
-            pass
-            
-    def form_relationship(self, agent1, agent2):
-        """
-        Forms a relationship between agent1 and agent2.
-        """
-        d = self.duration(agent1, agent2)
-        agent1.last_match = self.master.time
-        agent2.last_match = self.master.time
-        self.master.relationships.append([agent1, agent2, self.master.time, self.master.time + d])
-        self.master.network.add_edge(agent1, agent2, {"duration": d})
+            if self.master.primary:
+                self.add_relationship((suitor,match))
+            else:
+                self.master.comm.send((suitor,match), dest = self.master.other)
 
-    def dissolve_relationship(self, agent1, agent2):
-        """
-        Dissolves a relationship between agent1 and agent2.
-        """
-        #print "relationship dissolved:",agent1.attributes["NAME"],agent2.attributes["NAME"]
-        self.master.network.remove_edge(agent1, agent2)
+    def add_relationship(relationship):
+        suitor, match = relationship
+        self.form_relationship(suitor, match) 
+        if self.master.network.degree(suitor) >= suitor.dnp:
+            self.pipes[suitor.grid_queue].send("remove")
+            self.pipes[suitor.grid_queue].send(suitor.attributes["NAME"])
+        if self.master.network.degree(match) >= match.dnp:
+            self.pipes[match.grid_queue].send("remove")
+            self.pipes[match.grid_queue].send(match.attributes["NAME"])
         
-        #add agents into appropriate grid queues
-        self.update_grid_queue_for(agent1)
-        self.update_grid_queue_for(agent2)
-
-    def duration(self, agent1, agent2):
-        """
-        Returns a duration given two agents.
-
-        Can test some qualities of the agents to assess what
-        kind of relationship they would form (i.e., transitory, casual,
-        marriage). 
-        """
-        return self.master.DURATIONS(agent1, agent2)  # initial naive duration calculation
-
     def update_grid_queue_for(self, agent):
         """
         Find the appropriate grid queue for agent. Called by 
@@ -184,12 +100,25 @@ class RelationshipOperator():
            1.5 Time Operator - when relationship with removed is dissolved
            2. Relationship Operator - a relationship is dissolved
            3. Community - in make_population in the mainloop
+           
+        Alternative implementation also necessitates grid queue selection based
+        on location.
         """
+        loc = agent.attributes["LOC"][0][0]
+        if self.master.primary and loc > 0.5:
+            self.comm.send(agent, dest = self.master.other)  # send to other community
+            return
+
+        #remove from current grid queue
+        agent_pipe = self.pipes[agent.grid_queue]
+        agent_pipe.send("remove")
+        agent_pipe.send(agent_name)
+
+        #add to new grid queue
         grid_queue = [gq for gq in self.grid_queues if gq.accepts(agent)][agent.sex]
         agent.grid_queue = grid_queue.my_index
-        if self.master.network.degree(agent) < agent.dnp:
-            self.pipes[agent.grid_queue].send("add")
-            self.pipes[agent.grid_queue].send(agent)
+        self.pipes[agent.grid_queue].send("add")
+        self.pipes[agent.grid_queue].send(agent)
 
 
 class TimeOperator():
@@ -207,17 +136,24 @@ class TimeOperator():
         agents that are too old, and move agents to new grid queue (if
         required.)
         """
-        #sync grid_queue clocks
+        #0.1 sync grid_queue clocks
         for gq in self.master.relationship_operator.grid_queues:  # kinda hacky
             gq.time = self.master.time
             
-        #0. Update the clock of the GridQueues (processes AND originals)
+        #0.2 Update the clock of the GridQueues (processes AND originals)
         pipes = self.master.relationship_operator.pipes.values()
         for pipe in pipes:
             pipe.send("time")
             pipe.send(self.master.time)
+
+        #1. non-primary: listen for updates
+        if not self.master.primary:  # wait for updates about agents
+            agent = self.master.comm.recv(source = self.master.other)
+            while agent != 'done':
+                self.update_grid_queue_for(agent)
+                agent = self.master.comm.recv(source = self.master.other)
         
-        #Increment ages of agents, move their queue if necessary
+        #2. primary: increment ages of agents, move their queue if necessary
         agents = self.master.network.nodes()
         for agent in agents:
             agent_name = agent.attributes["NAME"]
@@ -231,9 +167,8 @@ class TimeOperator():
             #if (in queue) and (shouldn't be)
             gq = self.master.relationship_operator.grid_queues[agent.grid_queue]
             if not gq.accepts(agent):  
-                agent_pipe.send("remove")
-                agent_pipe.send(agent_name) 
                 self.master.relationship_operator.update_grid_queue_for(agent)
+        self.master.comm.send('done',dest = self.master.other)
                 
     def remove(self, agent):
         agent_name = agent.attributes["NAME"]
@@ -275,6 +210,9 @@ class InfectionOperator():
         relationship is serodiscordant, infect the uninfected partner with
         probablity this is relative to infectivity.
         """
+        if not self.master.primary:
+            return
+        
         #Go through edges and flip coin for infections
         now = self.master.time
         relationships = self.master.network.edges()
