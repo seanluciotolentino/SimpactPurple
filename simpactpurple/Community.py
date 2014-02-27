@@ -116,12 +116,7 @@ class Community():
 
         After an agent receives a name, age, sex, and DNP, he or she is added
         to the network graph and added to a grid queue.
-        """
-#        if not born:
-#            born = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
-#        sex = lambda: random.randint(self.SEXES)
-#        dnp = self.DNP
-        
+        """ 
         self.AGENT_ATTRIBUTES["TIME_ADDED"] = self.time
         self.AGENT_ATTRIBUTES["TIME_REMOVED"] = np.Inf
         for i in range(size):

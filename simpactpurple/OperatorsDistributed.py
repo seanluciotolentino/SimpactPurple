@@ -26,7 +26,15 @@ class RelationshipOperator(Operators.RelationshipOperator):
         """
         #0. Dissolve relationships
         if self.master.primary:
+            # sends agents back to right grid queues
             self.update()
+            self.master.comm.send('done', dest = self.master.other)
+        else:
+            # recv agents and add to right grid queue
+            agent = self.master.comm.recv(source = self.master.other)
+            while agent != 'done':
+                self.update_grid_queue_for(agent)
+                agent = self.master.comm.recv(source = self.master.other)
         
         #1. Recruit AND SWAP
         for i in range(int(self.master.MAIN_QUEUE_MAX * len(self.master.agents))):  # *** do this better
@@ -60,7 +68,6 @@ class RelationshipOperator(Operators.RelationshipOperator):
             pipe.send(suitor)
         names = [pipe.recv() for pipe in self.pipes.values()]        
         matches = [self.master.agents[n] for n in names if n is not None]
-
         
         #2. Suitor flips coins with potential matches
         if(not matches): #no matches
@@ -83,7 +90,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
             else:
                 self.master.comm.send((suitor,match), dest = self.master.other)
 
-    def add_relationship(relationship):
+    def add_relationship(self, relationship):
         suitor, match = relationship
         self.form_relationship(suitor, match) 
         if self.master.network.degree(suitor) >= suitor.dnp:
@@ -108,11 +115,6 @@ class RelationshipOperator(Operators.RelationshipOperator):
         if self.master.primary and loc > 0.5:
             self.comm.send(agent, dest = self.master.other)  # send to other community
             return
-
-        #remove from current grid queue
-        agent_pipe = self.pipes[agent.grid_queue]
-        agent_pipe.send("remove")
-        agent_pipe.send(agent_name)
 
         #add to new grid queue
         grid_queue = [gq for gq in self.grid_queues if gq.accepts(agent)][agent.sex]

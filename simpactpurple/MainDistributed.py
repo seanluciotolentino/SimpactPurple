@@ -12,6 +12,7 @@ is the initial test script for proof of concept.
 from mpi4py import MPI
 import CommunityDistributed
 
+print "hello from", MPI.Get_processor_name()
 
 #MPI variables
 comm = MPI.COMM_WORLD
