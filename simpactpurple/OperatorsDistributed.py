@@ -113,7 +113,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         """
         loc = agent.attributes["LOC"][0][0]
         if self.master.primary and loc > 0.5:
-            self.comm.send(agent, dest = self.master.other)  # send to other community
+            self.master.comm.send(agent, dest = self.master.other)  # send to other community
             return
 
         #add to new grid queue

@@ -4,7 +4,7 @@ import Community
 import OperatorsDistributed
 import time as Time
 
-class Community(Community.Community):
+class CommunityDistributed(Community.Community):
 
     def __init__(self, comm):
         Community.Community.__init__(self)
@@ -15,7 +15,7 @@ class Community(Community.Community):
         self.other = (self.rank+1)%2
         
         #MODEL PARAMETERS
-        self.NUMBER_OF_YEARS = 30
+        self.NUMBER_OF_YEARS = 5
         
         #MODEL OPERATORS
         #hazard
@@ -82,8 +82,8 @@ class Community(Community.Community):
     
     def make_operators(self):
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
-        #self.infection_operator = OperatorsDistributed.InfectionOperator(self)
-        #self.time_operator = OperatorsDistributed.TimeOperator(self)
+        self.infection_operator = OperatorsDistributed.InfectionOperator(self)
+        self.time_operator = OperatorsDistributed.TimeOperator(self)
             
     def add(self, agent):
         self.agents[agent.attributes["NAME"]] = agent
