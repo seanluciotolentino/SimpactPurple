@@ -46,27 +46,6 @@ class CommunityDistributed(Community.Community):
         self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
         self.SEX = lambda: random.randint(self.SEXES)
         self.DNP = lambda: random.power(0.2)*(4)
-            
-    def run(self, timing = False):
-        """
-        Initialize data structures and begin the mainloop of the modified 
-        Community: Wait for "step" signal from Global, send "done" signal
-        when finished. Global waits for all communities to send "done"
-        before sending next "step". Global migration operator may remove and
-        add individuals to communities.
-        """
-        self.start()  # initialize data structures
-        print "running..."
-        #mainloop
-        for t in range(int(self.NUMBER_OF_YEARS*52)):
-            self.time = t
-            self.step()
-        
-        self.cleanup()  # send terminate signal
-
-        #print timing if desired:
-        end = Time.time()
-        if timing: print "simulation took",end-start,"seconds"
 
     def step(self):
         """
@@ -80,6 +59,16 @@ class CommunityDistributed(Community.Community):
 
         #3. HIV transmission
         #self.infection_operator.step()
+
+    def make_population(self):
+        if self.primary:
+            Community.Community.make_population(self, self.INITIAL_POPULATION)
+            self.comm.send('done', dest = self.other)
+        else:
+            agent = self.master.comm.recv(source = self.master.other)
+            while agent != 'done':
+                self.update_grid_queue_for(agent)
+                agent = self.master.comm.recv(source = self.master.other)
     
     def make_operators(self):
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
@@ -93,3 +82,4 @@ class CommunityDistributed(Community.Community):
         #location
         agent.attributes["LOC"] = np.random.rand(1,2) # should be generic to dimensions
         self.relationship_operator.update_grid_queue_for(agent)
+        
