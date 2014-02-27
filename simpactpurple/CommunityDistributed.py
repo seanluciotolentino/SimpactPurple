@@ -1,6 +1,7 @@
 import numpy.random as random
 import numpy as np
 import Community
+import Operators
 import OperatorsDistributed
 import time as Time
 
@@ -82,8 +83,8 @@ class CommunityDistributed(Community.Community):
     
     def make_operators(self):
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
-        self.infection_operator = OperatorsDistributed.InfectionOperator(self)
-        self.time_operator = OperatorsDistributed.TimeOperator(self)
+        self.infection_operator = Operators.InfectionOperator(self)
+        self.time_operator = Operators.TimeOperator(self)
             
     def add(self, agent):
         self.agents[agent.attributes["NAME"]] = agent
@@ -92,5 +93,3 @@ class CommunityDistributed(Community.Community):
         #location
         agent.attributes["LOC"] = np.random.rand(1,2) # should be generic to dimensions
         self.relationship_operator.update_grid_queue_for(agent)
-        
-        

@@ -5,8 +5,6 @@ Created on Mon Sep 16 18:32:35 2013
 @author: Lucio
 """
 from heapq import *
-#from heapL import *
-import multiprocessing
 
 class PriorityQueue():
 
