@@ -21,7 +21,7 @@ sys.path.append(os.pardir)
 
 
 #population_ranges = range(1000,5001,1000)
-population_ranges = range(100,101,100)
+population_ranges = range(100,501,100)
 
 
 print "multiple nodes, multiple communities"
@@ -55,5 +55,5 @@ plt.plot(population_ranges, single)
 plt.xlabel('Population size')
 plt.ylabel('Elapsed time (s)')
 plt.title('Run time comparison')
-plt.savefig('runtimes.png')
+plt.savefig('SpeedTests.png')
 plt.close(fig)
