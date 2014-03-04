@@ -4,10 +4,7 @@ The module for the GridQueue class and function for listening.
 import random
 import PriorityQueue #lucio's implementation
 import numpy as np
-import multiprocessing
 import sys
-import math
-import time
 
 def listen(gq, pipe):
     """
@@ -92,35 +89,26 @@ class GridQueue():
         with *suitor*. Returns None if there are no agents, or none of the
         agents in the grid queue don't accept.
         """
-        #1. EMPTY QUEUE
+        #empty queue?
         if self.my_agents.empty():
-            #print "  GQ",self.my_index,"finished 1"
-            #sys.stdout.flush()
             return None
         
-        #2. RE-SORT IF DISSIMILAR
+        #Resort if dissimilar
         if self.previous is None or self.previous.grid_queue != suitor.grid_queue:
-            #print "  GQ",self.my_index,"reshuffling"
-            #sys.stdout.flush()
-            #self.previous = suitor
-            #do the math just once
             suitor_age = self.age(suitor)
-            mean_age = (suitor_age + self.my_age) / 2
-            age_difference = suitor_age - self.my_age
+            ma = (suitor_age + self.my_age) / 2
+            ad = suitor_age - self.my_age
 
             #flip coins for agents
             agents = list(self.my_agents.heap)
             self.my_agents.clear()
             for old_hazard, agent in agents:  # old_hazard is not needed
-                #hazard = self.master.master.hazard(agent, suitor, age_difference, mean_age)
-                hazard = self.hazard(agent, suitor, age_difference, mean_age)
-                sys.stdout.flush()
+                hazard = self.hazard(agent, suitor, age_difference = ad, mean_age = ma)
                 decision = int(random.random() < hazard)
-                #self.my_agents.put((-decision, agent))
                 self.my_agents.push(-decision,agent)
         self.previous = suitor
 
-        #3. ADD ACCEPTING AGENT TO QUEUE
+        #Return an accepting agent
         top = self.my_agents.top()
         accept = top[0]
         match = top[1]
@@ -131,12 +119,10 @@ class GridQueue():
                 return None
             else:
                 #try to pop next in the queue
-                accept, suitor = self.my_agents.pop()
-                top = self.my_agents.top()
-                accept = top[0]
-                match = top[1]
+                suitor_accept, suitor = self.my_agents.pop()
+                accept, match = self.my_agents.top()
                 match_name = match.attributes["NAME"]
-                self.my_agents.push(accept, suitor)
+                self.my_agents.push(suitor_accept, suitor)
         
         if accept == 0:  
             return None
@@ -191,15 +177,18 @@ class GridQueue():
         """
         return (self.time - agent.born)/52      
         
-    def hazard(self, agent1, agent2, age_difference=None, mean_age=None):
+    def hazard(self, agent1, agent2, **attributes):
         """
         Calculates and returns the hazard of relationship formation between
         agent1 and agent2. If *age_difference* or *mean_age* is None (i.e.
         not provided), this function will calculate it. 
         """
-        if(age_difference is None or mean_age is None):
-            agent1_age = self.age(agent1)
-            agent2_age = self.age(agent2)
+        if('age_difference' in attributes and 'mean_age' in attributes):
+            age_difference = attributes['age_difference']
+            mean_age = attributes['mean_age']
+        else:
+            agent1_age = self.grid_queues[agent1.grid_queue].my_age
+            agent2_age = self.grid_queues[agent2.grid_queue].my_age
             mean_age = (agent1_age + agent2_age) / 2
             age_difference = agent2_age - agent1_age
             

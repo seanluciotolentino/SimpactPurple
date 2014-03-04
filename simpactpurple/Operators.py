@@ -4,10 +4,6 @@ Module for all of the default operators.
 
 import Queue
 import numpy.random as random
-import GridQueue
-import multiprocessing
-import PriorityQueue
-import sys
 
 class RelationshipOperator():
     """
@@ -152,17 +148,15 @@ class TimeOperator():
         agents that are too old, and move agents to new grid queue (if
         required.)
         """
-        #sync grid_queue clocks
-        for gq in self.master.grid_queues.values():  # kinda hacky
-            gq.time = self.master.time
-            
         #0. Update the clock of the GridQueues (processes AND originals)
         pipes = self.master.pipes.values()
         for pipe in pipes:
             pipe.send("time")
             pipe.send(self.master.time)
+        for gq in self.master.grid_queues.values():  # kinda hacky
+            gq.time = self.master.time
         
-        #Increment ages of agents, move their queue if necessary
+        #1. Increment ages of agents, move their queue if necessary
         agents = self.master.network.nodes()
         for agent in agents:
             agent_name = agent.attributes["NAME"]
@@ -229,7 +223,6 @@ class InfectionOperator():
         now = self.master.time
         relationships = self.master.network.edges()
         for r in relationships:
-            #print "now:",now,"|",r[0].time_of_infection, r[0].time_of_infection<now, r[1].time_of_infection, r[1].time_of_infection>now
             if(r[0].time_of_infection < now and r[1].time_of_infection > now and random.random() < self.master.INFECTIVITY):
                 r[1].time_of_infection = now
                 continue
