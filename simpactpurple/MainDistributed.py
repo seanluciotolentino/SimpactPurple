@@ -22,7 +22,7 @@ c = CommunityDistributed.CommunityDistributed(comm)
 c.INITIAL_POPULATION = int(sys.argv[1])
 c.run()
 
-#GraphsAndData.formed_relations_graph(c,filename='formed_relations'+name+'.png')
-#GraphsAndData.sexual_network_graph(c,filename='sexual_network'+name+'.png')
+GraphsAndData.formed_relations_graph(c,filename='formed_relations'+name+'.png')
+GraphsAndData.sexual_network_graph(c,filename='sexual_network'+name+'.png')
 
 print "exit"

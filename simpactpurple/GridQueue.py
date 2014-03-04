@@ -135,7 +135,7 @@ class GridQueue():
         """
         #Verify that this agent isn't already in the queue
         agent_name = agent.attributes["NAME"]
-        if agent_name in self.names.keys() and self.names[agent_name]:
+        if agent_name in self.names and self.names[agent_name]:
             return
 
         #add with the appropriate priority
