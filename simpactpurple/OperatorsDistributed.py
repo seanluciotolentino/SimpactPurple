@@ -34,12 +34,12 @@ class RelationshipOperator(Operators.RelationshipOperator):
         #1.1 Recruit
         for i in range(int(self.master.MAIN_QUEUE_MAX * len(self.master.agents))):  # *** do this better
             self.recruit()
-        self.master.comm.send('done', dest = self.master.other)
+        self.master.comm.send(('done',None), dest = self.master.other)
         #1.2 Swap
         self.master.listen()
             
         #2.1 Match
-        while(not self.main_queue.empty()):
+        while(not self.master.main_queue.empty()):
             self.match()
         #2.2 Sync
         if self.master.primary:
@@ -60,15 +60,15 @@ class RelationshipOperator(Operators.RelationshipOperator):
         Differs from normal RelationshipOperator by flipping a coin as to
         whether to add recruited agent to this main queue or other main queue.
         """
-        gq = self.grid_queues[random.randint(len(self.grid_queues))]
-        self.pipes[gq.my_index].send("recruit")
-        agent_name = self.pipes[gq.my_index].recv()
+        gq = self.master.grid_queues[random.randint(len(self.master.grid_queues))]
+        self.master.pipes[gq.my_index].send("recruit")
+        agent_name = self.master.pipes[gq.my_index].recv()
         if agent_name is not None:
             agent = self.master.agents[agent_name]
             
             #send half of agents to other
             if random.random() < 0.5:
-                self.main_queue.push(gq.my_index, agent)
+                self.master.main_queue.push(gq.my_index, agent)
             else:
                 self.master.comm.send(('push',agent), dest = self.master.other)
     
@@ -81,13 +81,13 @@ class RelationshipOperator(Operators.RelationshipOperator):
         to primary via MPI.
         """
         #1. get next suitor and request matches for him/her from grid queues
-        suitor = self.main_queue.pop()[1]
+        suitor = self.master.main_queue.pop()[1]
 	
         #1.2 Parallel, send enquiries via pipe
-        for pipe in self.pipes.values():
+        for pipe in self.master.pipes.values():
             pipe.send("enquire")
             pipe.send(suitor)
-        names = [pipe.recv() for pipe in self.pipes.values()]        
+        names = [pipe.recv() for pipe in self.master.pipes.values()]        
         matches = [self.master.agents[n] for n in names if n is not None]
         
         #2. Suitor flips coins with potential matches
@@ -123,15 +123,15 @@ class RelationshipOperator(Operators.RelationshipOperator):
             if suitor.attributes["LOC"][0][0] > 0.5:
                 self.master.comm.send(('remove',suitor_name), dest = self.master.other)
             else:
-                self.pipes[suitor.grid_queue].send("remove")
-                self.pipes[suitor.grid_queue].send(suitor_name)
+                self.master.pipes[suitor.grid_queue].send("remove")
+                self.master.pipes[suitor.grid_queue].send(suitor_name)
                 
         if self.master.network.degree(match) >= match.dnp:
             if match.attributes["LOC"][0][0] > 0.5:
                 self.master.comm.send(('remove',match_name), dest = self.master.other)
             else:
-                self.pipes[match.grid_queue].send("remove")
-                self.pipes[match.grid_queue].send(suitor_name)
+                self.master.pipes[match.grid_queue].send("remove")
+                self.master.pipes[match.grid_queue].send(suitor_name)
 
 class TimeOperator(Operators.TimeOperator):
     """
