@@ -3,10 +3,13 @@ The main module a simulation of a community.
 """
 
 import Operators
+import GridQueue
+import PriorityQueue
 import networkx as nx
 import time as Time  # I use the keyword time
 import numpy as np
 import numpy.random as random
+import multiprocessing
 
 class Agent():
     def __init__(self, attributes):
@@ -90,15 +93,41 @@ class Community():
         set simulation variables and still have initialization of data
         structures independent from the run method.
         """
+        #basic structures
         self.network = nx.Graph()
-        self.agents = {}  # agent_name --> agent
-        self.grid_queue = {}  # agent --> grid_queue
+        self.agents = {}  # {agent_name : agent}
         self.relationships = []
+
+        #grid queues and operators        
+        self.grid_queues = {}  # {gq.index : gq}
+        self.pipes = {}  # {gq.index : pipe}
+        self.main_queue = PriorityQueue.PriorityQueue()
+        self.make_grid_queues()
         self.make_operators()  
+        
+        #initialize population
         self.make_population(self.INITIAL_POPULATION)  # make agents
         self.BORN = lambda: self.time - (52*15.02)  # new born function for replacement
         self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
-            
+    
+    def make_grid_queues(self):
+        for age in range(self.MIN_AGE, self.MAX_AGE, self.BIN_SIZE):
+            bottom = age
+            top = age+self.BIN_SIZE
+            for sex in range(self.SEXES):
+                #make the grid queue
+                gq = GridQueue.GridQueue(top, bottom, sex, len(self.grid_queues))
+                gq.preferred_age_difference = self.preferred_age_difference
+                gq.probability_multiplier = self.probability_multiplier
+                gq.preferred_age_difference_growth = self.preferred_age_difference_growth
+                self.grid_queues[gq.my_index] = gq
+                                        
+                #start a new process for it
+                pipe_top, pipe_bottom = multiprocessing.Pipe()
+                p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))#, semaphore))
+                p.start()
+                self.pipes[gq.my_index] = pipe_top
+        
     def make_operators(self):
         """
         Creates the operators necessary for the simulation.
@@ -107,7 +136,6 @@ class Community():
         self.infection_operator = Operators.InfectionOperator(self)
         self.time_operator = Operators.TimeOperator(self)
         
-    #def make_population(self, size, born=None):
     def make_population(self, size):
         """
         Creates *size* agents with age, sex, and desired number of partners
@@ -126,9 +154,9 @@ class Community():
             a.born = self.BORN()
             a.sex = self.SEX()
             a.dnp = self.DNP()
-            self.add(a)
+            self.add_to_simulation(a)
             
-    def add(self,agent):
+    def add_to_simulation(self,agent):
         """
         Add *agent* to the list of agents, the network, and assign to a grid
         queue. This is seperate from the make_population method so that
@@ -136,7 +164,21 @@ class Community():
         """
         self.agents[agent.attributes["NAME"]] = agent
         self.network.add_node(agent)
-        self.relationship_operator.update_grid_queue_for(agent)
+        self.add_to_grid_queue(agent)
+        
+    def add_to_grid_queue(self, agent):
+        """
+        Find the appropriate grid queue for agent. Called by 
+           1. Time Operator - when agent graduates to the next grid queue
+           1.5 Time Operator - when relationship with removed is dissolved
+           2. Relationship Operator - a relationship is dissolved
+           3. Community - in make_population in the mainloop
+        """
+        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
+        agent.grid_queue = grid_queue.my_index
+        
+        self.pipes[agent.grid_queue].send("add")
+        self.pipes[agent.grid_queue].send(agent)
 
     def step(self):
         """
@@ -156,7 +198,7 @@ class Community():
         Send a 'terminate' signal to all of the Grid Queues. Update end values
         in relationships (to account for deaths). 
         """
-        for pipe in self.relationship_operator.pipes.values():
+        for pipe in self.pipes.values():
             pipe.send("terminate")
             
         for r in self.relationships:
@@ -170,15 +212,18 @@ class Community():
         """
         return (self.time - agent.born)/52.0
 
-    def hazard(self, agent1, agent2, age_difference=None, mean_age=None):
+    def hazard(self, agent1, agent2, **attributes):
         """
         Calculates and returns the hazard of relationship formation between
         agent1 and agent2. If *age_difference* or *mean_age* is None (i.e.
         not provided), this function will calculate it. 
         """
-        if(age_difference is None or mean_age is None):
-            agent1_age = self.relationship_operator.grid_queues[agent1.grid_queue].my_age
-            agent2_age = self.relationship_operator.grid_queues[agent2.grid_queue].my_age
+        if('age_difference' in attributes and 'mean_age' in attributes):
+            age_difference = attributes['age_difference']
+            mean_age = attributes['mean_age']
+        else:
+            agent1_age = self.grid_queues[agent1.grid_queue].my_age
+            agent2_age = self.grid_queues[agent2.grid_queue].my_age
             mean_age = (agent1_age + agent2_age) / 2
             age_difference = agent2_age - agent1_age
             
@@ -217,12 +262,12 @@ class Community():
         print "Cumulative num relations:",len(self.relationships)
         print "Point prevalence of relations:",len(self.network.edges())
         print "Grid Queues"
-        print "agents in grid queues = ",sum([ len(gq.my_agents.heap) for gq in self.relationship_operator.grid_queues])
+        print "agents in grid queues = ",sum([ len(gq.my_agents.heap) for gq in self.grid_queues])
             
         print "GQ\t| G Ag Sz|| doubles?\t|| agents"
         print "------------------------------------------"
-        for gq in self.relationship_operator.grid_queues:
-            pipe = self.relationship_operator.pipes[gq.my_index]
+        for gq in self.grid_queues:
+            pipe = self.pipes[gq.my_index]
             pipe.send("queue")
             agents = pipe.recv()
             agents = [str(a.attributes["NAME"]) for p,a in agents.heap]
@@ -236,8 +281,8 @@ class Community():
     def assertions(self):
         #assert that no agents is in a grid queue twice
         doubles = []
-        for gq in self.relationship_operator.grid_queues:
-            pipe = self.relationship_operator.pipes[gq.my_index]
+        for gq in self.grid_queues:
+            pipe = self.pipes[gq.my_index]
             pipe.send("queue")
             agents = pipe.recv().heap
             doubles.append([a for p,a in agents if agents.count(a) > 1])
