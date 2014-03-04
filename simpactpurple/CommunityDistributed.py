@@ -68,6 +68,9 @@ class CommunityDistributed(Community.Community):
         
         #location
         agent.attributes["LOC"] = np.random.rand(1,2) # should be generic to dimensions
+        loc = agent.attributes["LOC"][0][0]
+        if self.primary and loc > 0.5:
+            self.comm.send(('add_to_simulation',agent), dest = self.other)
         self.add_to_grid_queue(agent)
         
     def add_to_grid_queue(self, agent):
@@ -98,6 +101,9 @@ class CommunityDistributed(Community.Community):
         msg, data = self.comm.recv(source = self.other)  # data depends on msg
         
         while msg != 'done':
+            if msg == 'add_to_simulation':
+                agent = data  # data is agent object here
+                self.agents[agent.attributes["NAME"]] = agent
             if msg == 'add_to_grid_queue':
                 """Messages only to non-primary"""
                 agent = data  # data is agent object here
