@@ -54,7 +54,7 @@ class CommunityDistributed(Community.Community):
         """
         if self.primary:
             Community.Community.make_population(self, size)
-            self.comm.send('done', dest = self.other)
+            self.comm.send(('done',None), dest = self.other)
         else:
             self.listen()
             
@@ -83,8 +83,8 @@ class CommunityDistributed(Community.Community):
         """
         #check that agent in community boundaries
         loc = agent.attributes["LOC"][0][0]
-        if self.master.primary and loc > 0.5:
-            self.master.comm.send(('add_to_grid_queue',agent), dest = self.master.other)  # send to other community
+        if self.primary and loc > 0.5:
+            self.comm.send(('add_to_grid_queue',agent), dest = self.other)  # send to other community
             return
         
         grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
