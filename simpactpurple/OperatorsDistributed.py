@@ -22,7 +22,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         """
         Take a single time step in the simulation. 
         """
-    	#0. Dissolve relationships
+	#0. Dissolve relationships
         if self.master.primary:
             # sends agents back to right grid queues
             self.update()
@@ -89,7 +89,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
             pipe.send(suitor)
         names = [pipe.recv() for pipe in self.master.pipes.values()]        
         matches = [self.master.agents[n] for n in names if n is not None]
-        
+
         #2. Suitor flips coins with potential matches
         if(not matches): #no matches
             return
@@ -118,7 +118,10 @@ class RelationshipOperator(Operators.RelationshipOperator):
         suitor_name = suitor.attributes["NAME"]
         match_name = match.attributes["NAME"]
         self.form_relationship(suitor, match) 
-        
+        if suitor.grid_queue is None or match.grid_queue is None:
+	    print '-------'
+	    print 'match',match.attributes
+	    print 'suitor',suitor.attributes
         if self.master.network.degree(suitor) >= suitor.dnp:
             if suitor.attributes["LOC"][0][0] > 0.5:
                 self.master.comm.send(('remove',suitor_name), dest = self.master.other)
@@ -161,7 +164,7 @@ class TimeOperator(Operators.TimeOperator):
             self.master.listen()
             return
         
-        #2. primary: check age consistency of agents
+	#2. primary: check age consistency of agents
         agents = self.master.network.nodes()
         for agent in agents:
             #if older than max age of simulation
@@ -170,15 +173,15 @@ class TimeOperator(Operators.TimeOperator):
                 continue  # go to the next agent
                 
             #if older than max age of grid queue
-            gq = self.master.relationship_operator.grid_queues[agent.grid_queue]
+            gq = self.master.grid_queues[agent.grid_queue]
             if not gq.accepts(agent):  
-                self.master.relationship_operator.update_grid_queue_for(agent)
+                self.master.add_to_grid_queue(agent)
                 
         self.master.comm.send(('done',None),dest = self.master.other)
                 
     def remove(self, agent):
         agent_name = agent.attributes["NAME"]
-        
+
         #end ongoing relations
         relations = self.master.network.edges(agent)
         for r in relations:
@@ -194,7 +197,7 @@ class TimeOperator(Operators.TimeOperator):
         #remove from grid queues
         loc = agent.attributes["LOC"][0][0]
         if self.master.primary and loc > 0.5:
-            self.master.comm.send(('remove',agent), dest = self.master.other)  # send to other community
+            self.master.comm.send(('remove',agent_name), dest = self.master.other)  # send to other community
         else:
             agent_pipe = self.master.pipes[agent.grid_queue]
             agent_pipe.send("remove")  # send remove irregardless
@@ -206,7 +209,7 @@ class TimeOperator(Operators.TimeOperator):
         #replace
         self.master.make_population(1)
 
-class InfectionOperator():
+class InfectionOperator(Operators.InfectionOperator):
     """
     Controls the progression of the sexually transmitted disease. 
     """
