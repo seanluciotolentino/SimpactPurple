@@ -20,8 +20,8 @@ import sys
 sys.path.append(os.pardir)
 
 
-#population_ranges = range(1000,5001,1000)
-population_ranges = range(100,501,100)
+population_ranges = range(1000,5001,1000)
+#population_ranges = range(100,501,100)
 
 
 print "multiple nodes, multiple communities"

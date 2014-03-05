@@ -1,7 +1,7 @@
 import numpy.random as random
 import numpy as np
 import Community
-import Operators
+#import Operators
 import OperatorsDistributed
 import time as Time
 
@@ -16,7 +16,7 @@ class CommunityDistributed(Community.Community):
         self.other = (self.rank+1)%2
         
         #MODEL PARAMETERS
-        self.NUMBER_OF_YEARS = 10
+        self.NUMBER_OF_YEARS = 30
         
         #MODEL OPERATORS
         #hazard
@@ -30,7 +30,7 @@ class CommunityDistributed(Community.Community):
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
         self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
-        self.DURATIONS = lambda a1, a2: 5*random.exponential(0.9)
+        self.DURATIONS = lambda a1, a2: 522*random.exponential(0.9)
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -54,9 +54,11 @@ class CommunityDistributed(Community.Community):
         """
         if self.primary:
             Community.Community.make_population(self, size)
-            self.comm.send(('done',None), dest = self.other)
+            #self.comm.send(('done',None), dest = self.other)
         else:
             self.listen()
+	if self.time <= 0:
+	    self.comm.send(('done',None), dest = self.other)
             
     def add_to_simulation(self, agent):
         """
@@ -81,14 +83,17 @@ class CommunityDistributed(Community.Community):
            2. Relationship Operator - a relationship is dissolved
            3. Community - in make_population in the mainloop
         """
+	grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
+	agent.grid_queue = grid_queue.my_index
+
         #check that agent in community boundaries
         loc = agent.attributes["LOC"][0][0]
         if self.primary and loc > 0.5:
-            self.comm.send(('add_to_grid_queue',agent), dest = self.other)  # send to other community
+            self.comm.send(('add_to_grid_queue',agent.attributes["NAME"]), dest = self.other)  # send to other community
             return
         
-        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-        agent.grid_queue = grid_queue.my_index
+        #grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
+        #agent.grid_queue = grid_queue.my_index
         
         self.pipes[agent.grid_queue].send("add")
         self.pipes[agent.grid_queue].send(agent)
@@ -104,14 +109,14 @@ class CommunityDistributed(Community.Community):
             if msg == 'add_to_simulation':
                 agent = data  # data is agent object here
                 self.agents[agent.attributes["NAME"]] = agent
-            if msg == 'add_to_grid_queue':
+            elif msg == 'add_to_grid_queue':
                 """Messages only to non-primary"""
-                agent = data  # data is agent object here
-                self.add_to_grid_queue(data)
+                agent = self.agents[data]  # data is agent name here
+                self.add_to_grid_queue(agent)
             elif msg == 'remove':
                 """Messages only to non-primary"""
-                agent = data  # data is agent object here
-                agent_name = agent.attributes["NAME"]
+                agent_name = data  # data is agent name here
+                agent = self.agents[agent_name]
                 agent_pipe = self.pipes[agent.grid_queue]
                 agent_pipe.send("remove")
                 agent_pipe.send(agent_name)
@@ -128,15 +133,14 @@ class CommunityDistributed(Community.Community):
                 
             #refresh message and data:
             msg, data = self.comm.recv(source = self.other)
-            
-    
-
+                
     def step(self):
         """
         Take a single time step (one week) in the simulation. 
         """ 
+	#print "step"
         #1. Time progresses
-        self.time_operator.step
+        self.time_operator.step()
         
         #2. Form and dissolve relationships
         self.relationship_operator.step()
