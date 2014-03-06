@@ -30,7 +30,7 @@ class CommunityDistributed(Community.Community):
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
         self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
-        self.DURATIONS = lambda a1, a2: 522*random.exponential(0.9)
+        self.DURATIONS = lambda a1, a2: 52*random.exponential(0.9)
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -54,12 +54,11 @@ class CommunityDistributed(Community.Community):
         """
         if self.primary:
             Community.Community.make_population(self, size)
-            #self.comm.send(('done',None), dest = self.other)
+            if self.time <=0:
+                self.comm.send(('done','making population'), dest = self.other)
         else:
-            self.listen()
-	if self.time <= 0:
-	    self.comm.send(('done',None), dest = self.other)
-            
+            self.listen('initial population')
+
     def add_to_simulation(self, agent):
         """
         Save the agent's name for future reference, add to network, assign
@@ -67,13 +66,14 @@ class CommunityDistributed(Community.Community):
         """
         self.agents[agent.attributes["NAME"]] = agent
         self.network.add_node(agent)
-        
+        #print self.rank,"ADDING",agent.attributes["NAME"]
         #location
         agent.attributes["LOC"] = np.random.rand(1,2) # should be generic to dimensions
         loc = agent.attributes["LOC"][0][0]
         if self.primary and loc > 0.5:
             self.comm.send(('add_to_simulation',agent), dest = self.other)
-        self.add_to_grid_queue(agent)
+        else:
+            self.add_to_grid_queue(agent)
         
     def add_to_grid_queue(self, agent):
         """
@@ -83,8 +83,8 @@ class CommunityDistributed(Community.Community):
            2. Relationship Operator - a relationship is dissolved
            3. Community - in make_population in the mainloop
         """
-	grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-	agent.grid_queue = grid_queue.my_index
+        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
+        agent.grid_queue = grid_queue.my_index
 
         #check that agent in community boundaries
         loc = agent.attributes["LOC"][0][0]
@@ -98,56 +98,61 @@ class CommunityDistributed(Community.Community):
         self.pipes[agent.grid_queue].send("add")
         self.pipes[agent.grid_queue].send(agent)
         
-    def listen(self):
+    def listen(self,forwhat):
         """
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        msg, data = self.comm.recv(source = self.other)  # data depends on msg
-        
-        while msg != 'done':
+        #cert = random.random()
+        #print "v=== listen for",forwhat," == START on",self.rank,"cert",cert,"=====v"
+        req = self.comm.irecv(dest = self.other)  # data depends on msg
+        while True:
+            #continually check that a message was received
+            flag, message = req.test()
+            if not flag: continue
+            msg, data = message
+    	    #print "  listening on",self.rank,"| msg:",msg,"data:",data
+            if msg == 'done':
+                break
+            req = self.comm.irecv(dest = self.other)  # listen for next message
+
+            #parse message and act            
             if msg == 'add_to_simulation':
                 agent = data  # data is agent object here
                 self.agents[agent.attributes["NAME"]] = agent
             elif msg == 'add_to_grid_queue':
-                """Messages only to non-primary"""
                 agent = self.agents[data]  # data is agent name here
                 self.add_to_grid_queue(agent)
             elif msg == 'remove':
-                """Messages only to non-primary"""
                 agent_name = data  # data is agent name here
-                agent = self.agents[agent_name]
+               	agent = self.agents[agent_name]
                 agent_pipe = self.pipes[agent.grid_queue]
                 agent_pipe.send("remove")
                 agent_pipe.send(agent_name)
             elif msg == 'add_relationship':
-                """Msg only to primary"""
                 relationship = data  # data is relationship tuple here
-                agent0 = self.agents[relationship[0]]  # look up name
-                agent1 = self.agents[relationship[1]]
-                self.relationship_operator.add_relationship((agent0, agent1))
+                agent1 = self.agents[relationship[0]]  # look up name
+                agent2 = self.agents[relationship[1]]
+                self.relationship_operator.form_relationship(agent1, agent2)
             elif msg == 'push':
-                """Messages to primary and non-primary"""
                 agent = data  # data is agent object here
                 self.main_queue.push(agent.grid_queue, agent)
-                
-            #refresh message and data:
-            msg, data = self.comm.recv(source = self.other)
-                
+                    
+        #print "^==== listen END on",self.rank,"cert",cert,"====^" 
+
     def step(self):
         """
         Take a single time step (one week) in the simulation. 
-        """ 
-	#print "step"
-        #1. Time progresses
+        """
+	    #1. Time progresses
         self.time_operator.step()
         
         #2. Form and dissolve relationships
         self.relationship_operator.step()
-
+        
         #3. HIV transmission
         self.infection_operator.step()
-    
+
     def make_operators(self):
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
         self.infection_operator = OperatorsDistributed.InfectionOperator(self)

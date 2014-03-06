@@ -20,11 +20,13 @@ name = MPI.Get_processor_name()
 comm = MPI.COMM_WORLD
 c = CommunityDistributed.CommunityDistributed(comm)
 c.INITIAL_POPULATION = int(sys.argv[1])
+c.NUMBER_OF_YEARS = 30
 c.run()
 
-GraphsAndData.formed_relations_graph(c,filename='formed_relations'+name+'.png')
-GraphsAndData.sexual_network_graph(c,filename='sexual_network'+name+'.png')
-GraphsAndData.demographics_graph(c,filename='demographics'+name+'.png')
-GraphsAndData.prevalence_graph(c, filename='prevalence'+name+'.png')
-GraphsAndData.age_mixing_graph(c, filename='agemixing'+name+'.png')
+if comm.Get_rank() == 0:
+	GraphsAndData.formed_relations_graph(c,filename='formed_relations'+name+'.png')
+	GraphsAndData.sexual_network_graph(c,filename='sexual_network'+name+'.png')
+	GraphsAndData.demographics_graph(c,filename='demographics'+name+'.png')
+	GraphsAndData.prevalence_graph(c, filename='prevalence'+name+'.png')
+	GraphsAndData.age_mixing_graph(c, filename='agemixing'+name+'.png')
 print "exit"
