@@ -72,8 +72,7 @@ class CommunityDistributed(Community.Community):
         loc = agent.attributes["LOC"][0][0]
         if self.primary and loc > 0.5:
             self.comm.send(('add_to_simulation',agent), dest = self.other)
-        else:
-            self.add_to_grid_queue(agent)
+        self.add_to_grid_queue(agent)
         
     def add_to_grid_queue(self, agent):
         """

@@ -100,8 +100,8 @@ class RelationshipOperator(Operators.RelationshipOperator):
         accept = top[0]
         if accept:
             if self.master.primary:
-                suitor = self.agents[suitor.attributes["NAME"]]  # grab the appropriate agent
-                match = self.agents[match.attributes["NAME"]]
+                suitor = self.master.agents[suitor.attributes["NAME"]]  # grab the appropriate agent
+                match = self.master.agents[match.attributes["NAME"]]
                 self.form_relationship(suitor,match)
             else:
                 suitor = suitor.attributes["NAME"]
@@ -159,7 +159,7 @@ class TimeOperator(Operators.TimeOperator):
                 continue  # go to the next agent
             
             #2.2 move gq if older than max age of grid queue
-            gq = self.master.grid_queues[agent.grid_queue]
+	    gq = self.master.grid_queues[agent.grid_queue]
             if not gq.accepts(agent):
                 #2.2.1 remove from current gq
                 loc = agent.attributes["LOC"][0][0]
