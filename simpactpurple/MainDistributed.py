@@ -29,4 +29,6 @@ if comm.Get_rank() == 0:
 	GraphsAndData.demographics_graph(c,filename='demographics'+name+'.png')
 	GraphsAndData.prevalence_graph(c, filename='prevalence'+name+'.png')
 	GraphsAndData.age_mixing_graph(c, filename='agemixing'+name+'.png')
+	GraphsAndData.relationship_durations(c, filename='durations'+name+'.png')
+	GraphsAndData.gap_lengths(c, filename='gaplengths'+name+'.png')
 print "exit"
