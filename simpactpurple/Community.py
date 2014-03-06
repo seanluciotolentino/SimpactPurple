@@ -76,10 +76,9 @@ class Community():
         #print "running..."
         #mainloop
         for t in range(int(self.NUMBER_OF_YEARS*52)):
-            print "time",t
+            #print "---------time",t,"---------------"
             self.time = t
             self.step()
-            #self.assertions()
         
         self.cleanup()  # send terminate signal
 
@@ -262,11 +261,11 @@ class Community():
         print "Cumulative num relations:",len(self.relationships)
         print "Point prevalence of relations:",len(self.network.edges())
         print "Grid Queues"
-        print "agents in grid queues = ",sum([ len(gq.my_agents.heap) for gq in self.grid_queues])
+        print "agents in grid queues = ",sum([ len(gq.my_agents.heap) for gq in self.grid_queues.values()])
             
         print "GQ\t| G Ag Sz|| doubles?\t|| agents"
         print "------------------------------------------"
-        for gq in self.grid_queues:
+        for gq in self.grid_queues.values():
             pipe = self.pipes[gq.my_index]
             pipe.send("queue")
             agents = pipe.recv()
@@ -281,7 +280,7 @@ class Community():
     def assertions(self):
         #assert that no agents is in a grid queue twice
         doubles = []
-        for gq in self.grid_queues:
+        for gq in self.grid_queues.values():
             pipe = self.pipes[gq.my_index]
             pipe.send("queue")
             agents = pipe.recv().heap
