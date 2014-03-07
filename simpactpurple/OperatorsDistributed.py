@@ -41,7 +41,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         if self.master.primary:
             #add relationships from other commmunity
             for other in self.master.others:
-                self.master.listen('non-primary relationship')
+                self.master.listen('non-primary relationship', from_whom = other)
             self.master.broadcast(('done','adding matches'))
         else:
             #finish sending relationships to other community
@@ -175,7 +175,7 @@ class TimeOperator(Operators.TimeOperator):
             gq = self.master.grid_queues[agent.grid_queue]
             if not gq.accepts(agent) and self.master.network.degree(agent) <= agent.dnp:
                 #2.2.1 remove from current gq
-                if agent.partition is not self.rank:
+                if agent.partition is not self.master.rank:
                     self.master.comm.send(('remove',agent_name), dest=agent.partition)
                 else:
                     agent_pipe = self.master.pipes[agent.grid_queue]
@@ -186,7 +186,7 @@ class TimeOperator(Operators.TimeOperator):
                 self.master.add_to_grid_queue(agent)
     
         #3. send done signal
-    	self.master.comm.send(('done','time operations'),dest = self.master.other)
+    	self.master.broadcast(('done','time operations'))
                 
     def remove(self, agent):
         agent_name = agent.attributes["NAME"]
@@ -204,8 +204,8 @@ class TimeOperator(Operators.TimeOperator):
             self.master.add_to_grid_queue(other)
             
         #2. Remove from grid queues and network
-        if agent.rank is not self.rank:
-            self.master.comm.send(('remove',agent_name), dest = agent.rank)  # send to other community
+        if agent.partition is not self.master.rank:
+            self.master.comm.send(('remove',agent_name), dest = agent.partition)  # send to other community
         else:
             agent_pipe = self.master.pipes[agent.grid_queue]
             agent_pipe.send("remove")  # send remove irregardless

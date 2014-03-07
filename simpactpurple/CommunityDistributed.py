@@ -16,8 +16,8 @@ class CommunityDistributed(Community.Community):
         self.size = self.comm.Get_size()
         self.others = range(self.size)
         self.others.remove(self.rank)
-        self.partion = lambda agent: int(agent.attributes["LOC"][0][0] * self.size)
-                
+        self.partition = lambda agent: int(agent.attributes["LOC"][0][0] * self.size)
+ 
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
         
@@ -80,7 +80,7 @@ class CommunityDistributed(Community.Community):
         
         #location
         agent.attributes["LOC"] = np.random.rand(1,2) # should be generic to dimensions
-        agent.partition = self.parititon(agent)
+        agent.partition = self.partition(agent)
         if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
         self.add_to_grid_queue(agent)
@@ -109,15 +109,14 @@ class CommunityDistributed(Community.Community):
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        #cert = random.random()
-        #print "v=== listen for",for_what," == START on",self.rank,"cert",cert,"=====v"
+        #print "v=== listen for",for_what,"| STARTED ON",self.rank,"|time",self.time,"===v"
         req = self.comm.irecv(dest = from_whom)  # data depends on msg
         while True:
             #continually check that a message was received
             flag, message = req.test()
             if not flag: continue
             msg, data = message
-    	    #print "  listening on",self.rank,"| msg:",msg,"data:",data
+    	    #print "  > listening on",self.rank,"| msg:",msg,"data:",data
             if msg == 'done':
                 break
             req = self.comm.irecv(dest = from_whom)  # listen for next message
@@ -144,7 +143,8 @@ class CommunityDistributed(Community.Community):
                 agent = data  # data is agent object here
                 self.main_queue.push(agent.grid_queue, agent)
                     
-        #print "^==== listen END on",self.rank,"cert",cert,"====^" 
+        #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
+	#print
 
     def step(self):
         """

@@ -31,7 +31,7 @@ class RelationshipOperator():
         #1. Recruit
         for i in range(int(self.master.MAIN_QUEUE_MAX * len(self.master.agents))):  # *** do this better
             self.recruit()
-        print "--time",self.master.time,"recruited",self.master.main_queue.length(),"relationships",len(self.master.network.edges()),'---'
+        
         #2. Match
         while not self.master.main_queue.empty():
             self.match()
@@ -112,16 +112,12 @@ class RelationshipOperator():
         agent2.last_match = self.master.time
         self.master.relationships.append([agent1, agent2, self.master.time, self.master.time + d])
         self.master.network.add_edge(agent1, agent2, {"duration": d})
-        print "  relation formed:",agent1,"(",self.master.network.degree(agent1),"/",agent1.dnp,")",agent2,"(",self.master.network.degree(agent2),"/",agent2.dnp,')','time',self.master.time
-
-
 
     def dissolve_relationship(self, agent1, agent2):
         """
         Dissolves a relationship between agent1 and agent2.
         """
         self.master.network.remove_edge(agent1, agent2)
-        print "  relation dissolved:",agent1, agent2
 
         #add agents into appropriate grid queues
         self.master.add_to_grid_queue(agent1)
