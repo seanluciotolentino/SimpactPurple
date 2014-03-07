@@ -23,7 +23,7 @@ c.INITIAL_POPULATION = int(sys.argv[1])
 c.NUMBER_OF_YEARS = 30
 c.run()
 
-if comm.Get_rank() == 0:
+if comm.Get_rank() == 0 and False:
 	GraphsAndData.formed_relations_graph(c,filename='formed_relations'+name+'.png')
 	GraphsAndData.sexual_network_graph(c,filename='sexual_network'+name+'.png')
 	GraphsAndData.demographics_graph(c,filename='demographics'+name+'.png')

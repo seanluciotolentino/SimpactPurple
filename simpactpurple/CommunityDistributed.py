@@ -13,8 +13,11 @@ class CommunityDistributed(Community.Community):
         self.comm = comm
         self.rank = comm.Get_rank()
         self.primary = self.rank == 0
-        self.other = (self.rank+1)%2
-        
+        self.size = self.comm.Get_size()
+        self.others = range(self.size)
+        self.others.remove(self.rank)
+        self.partion = lambda agent: int(agent.attributes["LOC"][0][0] * self.size)
+                
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
         
@@ -47,6 +50,14 @@ class CommunityDistributed(Community.Community):
         self.SEX = lambda: random.randint(self.SEXES)
         self.DNP = lambda: random.power(0.2)*(4)
         
+    def broadcast(self, message):
+        """
+        A function which sends message to all nodes. This is necessary b/c
+        comm.bcast has buggy performance.
+        """
+        for other in self.others:
+            self.comm.send(message, dest = other)
+    
     def make_population(self, size):
         """
         Same as original, except non-primary communities listen for added
@@ -55,7 +66,7 @@ class CommunityDistributed(Community.Community):
         if self.primary:
             Community.Community.make_population(self, size)
             if self.time <=0:
-                self.comm.send(('done','making population'), dest = self.other)
+                self.broadcast(('done','making population'))                
         else:
             self.listen('initial population')
 
@@ -66,12 +77,12 @@ class CommunityDistributed(Community.Community):
         """
         self.agents[agent.attributes["NAME"]] = agent
         self.network.add_node(agent)
-        #print self.rank,"ADDING",agent.attributes["NAME"]
+        
         #location
         agent.attributes["LOC"] = np.random.rand(1,2) # should be generic to dimensions
-        loc = agent.attributes["LOC"][0][0]
-        if self.primary and loc > 0.5:
-            self.comm.send(('add_to_simulation',agent), dest = self.other)
+        agent.partition = self.parititon(agent)
+        if agent.partition is not self.rank:
+            self.comm.send(('add_to_simulation',agent), dest = agent.partition)
         self.add_to_grid_queue(agent)
         
     def add_to_grid_queue(self, agent):
@@ -86,25 +97,21 @@ class CommunityDistributed(Community.Community):
         agent.grid_queue = grid_queue.my_index
 
         #check that agent in community boundaries
-        loc = agent.attributes["LOC"][0][0]
-        if self.primary and loc > 0.5:
-            self.comm.send(('add_to_grid_queue',agent.attributes["NAME"]), dest = self.other)  # send to other community
+        if agent.partition is not self.rank:
+            self.comm.send(('add_to_grid_queue',agent.attributes["NAME"]), dest = agent.partition)  # send to other community
             return
-        
-        #grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-        #agent.grid_queue = grid_queue.my_index
         
         self.pipes[agent.grid_queue].send("add")
         self.pipes[agent.grid_queue].send(agent)
         
-    def listen(self,forwhat):
+    def listen(self, for_what, from_whom = 0):
         """
         Method for receiving messages from other communities and responding
         accordingly.
         """
         #cert = random.random()
-        #print "v=== listen for",forwhat," == START on",self.rank,"cert",cert,"=====v"
-        req = self.comm.irecv(dest = self.other)  # data depends on msg
+        #print "v=== listen for",for_what," == START on",self.rank,"cert",cert,"=====v"
+        req = self.comm.irecv(dest = from_whom)  # data depends on msg
         while True:
             #continually check that a message was received
             flag, message = req.test()
@@ -113,7 +120,7 @@ class CommunityDistributed(Community.Community):
     	    #print "  listening on",self.rank,"| msg:",msg,"data:",data
             if msg == 'done':
                 break
-            req = self.comm.irecv(dest = self.other)  # listen for next message
+            req = self.comm.irecv(dest = from_whom)  # listen for next message
 
             #parse message and act            
             if msg == 'add_to_simulation':
