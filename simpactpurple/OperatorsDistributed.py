@@ -45,7 +45,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
             self.master.broadcast(('done','adding matches'))
         else:
             #finish sending relationships to other community
-            self.master.comm.send(('done','sending matches'), dest = 0)
+            self.master.comm.send(('done','sending matches'), dest = self.master.primary)
             self.master.listen('matched agent removals', self.master.primary)
     
     def recruit(self):
@@ -254,6 +254,6 @@ class InfectionOperator(Operators.InfectionOperator):
             
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
         for i in range(infections):
-            agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]
+            agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
             agent.time_of_infection = seed_time * 52
 

@@ -17,7 +17,8 @@ class CommunityDistributed(Community.Community):
         self.others = others
         self.size = len(self.others) 
         self.migration = migration
-
+        print "checking in: rank",comm.Get_rank(),"primary",primary, "others",others,"migration",self.migration
+        
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
         
@@ -67,7 +68,7 @@ class CommunityDistributed(Community.Community):
             Community.Community.make_population(self, size)
             if self.time <=0:
                 self.broadcast(('done','making population')) 
-                self.send(('done','making population'), dest = 0)
+                self.comm.send(('done','making population'), dest = 0)
         else:
             self.listen('initial population', self.primary)
 
@@ -76,22 +77,20 @@ class CommunityDistributed(Community.Community):
         Save the agent's name for future reference, add to network, assign
         a location, and add to grid queue.
         """
-        agent_name = agent.attributes["NAME"]
-        if agent_name in self.agents:  # migration back
-            agent = self.agents[agent_name]
-        else:
-            self.agents[agent_name] = agent
-            self.comm.send(('add',agent_name), dest = 0)
+        if '-' not in agent.attributes["NAME"]:
+            agent.attributes["NAME"] = str(self.primary) + "-" + str(agent.attributes["NAME"])
         
+        self.agents[agent.attributes["NAME"]] = agent
         self.network.add_node(agent)
         
         #location
         partitions = list(self.others)
         partitions.append(self.primary)  # only primary calls this so same as self.rank
         agent.partition = partitions[random.randint(len(partitions))]
-
-    	if agent.partition is not self.rank:
+        if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
+        if self.migration:
+            self.comm.send(('add',agent), dest = 0)
         self.add_to_grid_queue(agent)
         
     def add_to_grid_queue(self, agent):
@@ -118,14 +117,14 @@ class CommunityDistributed(Community.Community):
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        #print "v=== listen for",for_what,"| STARTED ON",self.rank,"|time",self.time,"===v"
+        print "v=== listen for",for_what,"| STARTED ON",self.rank,"|time",self.time,"===v"
         req = self.comm.irecv(dest = from_whom)  # data depends on msg
         while True:
             #continually check that a message was received
             flag, message = req.test()
             if not flag: continue
             msg, data = message
-    	    #print "  > listening on",self.rank,"| msg:",msg,"data:",data
+    	    print "  > listening on",self.rank,"| msg:",msg,"data:",data
             if msg == 'done':
                 break
             req = self.comm.irecv(dest = from_whom)  # listen for next message
@@ -152,8 +151,8 @@ class CommunityDistributed(Community.Community):
                 agent = data  # data is agent object here
                 self.main_queue.push(agent.grid_queue, agent)
                     
-        #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
-	#print
+        print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
+        print
 
     def step(self):
         """
@@ -167,20 +166,21 @@ class CommunityDistributed(Community.Community):
             return
         
         if self.primary:
+            self.comm.send(('done','updating'), dest = 0)
+
             #0.1 Remove some agents (migrate away)
             removals = self.comm.recv(source = 0)
-            for agent_name in removals:
-                agent = self.agents[agent_name]
+            for removed in removals:
+                agent = self.agents[removed.attributes["NAME"]]
                 self.time_operator.remove(agent)
                 
             #0.2 Add some agents (migrate in)
             additions = self.comm.recv(source = 0)
-            for agent_name in additions:
-                agent = self.agents[agent_name]
+            for agent in additions:
                 self.add_to_simulation(agent)
                 
             #0.3 finish
-            self.broadcast('done')
+            self.broadcast(('done','migration updating'))
         else:
             self.listen('migration updates', self.primary)
             
