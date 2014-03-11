@@ -17,13 +17,13 @@ class RelationshipOperator(Operators.RelationshipOperator):
         Take a single time step in the simulation. 
         """
         #0. Dissolve relationships
-        if self.master.primary:
+        if self.master.is_primary:
             # sends agents back to right grid queues
             self.update()
             self.master.broadcast(('done','updating relationships'))
         else:
             # recv agents and add to right grid queue
-            self.master.listen('relationship updates')
+            self.master.listen('relationship updates', self.primary)
         self.already_added = []  # reset relationships formed this round
 
         #1.1 Recruit
@@ -38,7 +38,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         while(not self.master.main_queue.empty()):
             self.match()
         #2.2 Sync
-        if self.master.primary:
+        if self.master.is_primary:
             #add relationships from other commmunity
             for other in self.master.others:
                 self.master.listen('non-primary relationship', from_whom = other)
@@ -46,7 +46,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         else:
             #finish sending relationships to other community
             self.master.comm.send(('done','sending matches'), dest = 0)
-            self.master.listen('matched agent removals')
+            self.master.listen('matched agent removals', self.primary)
     
     def recruit(self):
         """
@@ -103,7 +103,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         match = top[1]
         accept = top[0]
         if accept:
-            if self.master.primary:
+            if self.master.is_primary:
                 suitor = self.master.agents[suitor.attributes["NAME"]]  # grab the appropriate agent
                 match = self.master.agents[match.attributes["NAME"]]
                 self.form_relationship(suitor,match)
@@ -157,8 +157,8 @@ class TimeOperator(Operators.TimeOperator):
             gq.time = self.master.time
 
         #1. non-primary: listen for updates
-        if not self.master.primary:  # wait for updates about agents
-            self.master.listen('time operations')
+        if not self.master.is_primary:  # wait for updates about agents
+            self.master.listen('time operations', self.primary)
             return
         
         #2. primary: check age consistency of agents
@@ -231,7 +231,7 @@ class InfectionOperator(Operators.InfectionOperator):
         relationship is serodiscordant, infect the uninfected partner with
         probablity this is relative to infectivity.
         """
-        if not self.master.primary:
+        if not self.master.is_primary:
             return
         
         #Go through edges and flip coin for infections

@@ -15,10 +15,13 @@ import GraphsAndData
 import sys
 
 print "hello from", MPI.Get_processor_name(),"rank",MPI.COMM_WORLD.Get_rank()
-name = MPI.Get_processor_name()
+
 #MPI variables
+name = MPI.Get_processor_name()
 comm = MPI.COMM_WORLD
-c = CommunityDistributed.CommunityDistributed(comm)
+others = range(comm.Get_size())
+others.remove(comm.Get_rank())
+c = CommunityDistributed.CommunityDistributed(comm, 0, others)
 c.INITIAL_POPULATION = int(sys.argv[1])
 c.NUMBER_OF_YEARS = 30
 c.run()

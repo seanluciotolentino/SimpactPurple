@@ -7,15 +7,14 @@ import time as Time
 
 class CommunityDistributed(Community.Community):
 
-    def __init__(self, comm):
+    def __init__(self, comm, primary, others):
         Community.Community.__init__(self)
         #Distributed parameters
         self.comm = comm
         self.rank = comm.Get_rank()
-        self.primary = self.rank == 0
-        self.size = self.comm.Get_size()
-        self.others = range(self.size)
-        self.others.remove(self.rank)
+        self.primary = primary
+        self.is_primary = self.rank == primary
+        self.others = others
         self.partition = lambda agent: int(agent.attributes["LOC"][0][0] * self.size)
  
         #MODEL PARAMETERS
@@ -63,12 +62,12 @@ class CommunityDistributed(Community.Community):
         Same as original, except non-primary communities listen for added
         agents instead of making agents themselves.
         """
-        if self.primary:
+        if self.is_primary:
             Community.Community.make_population(self, size)
             if self.time <=0:
                 self.broadcast(('done','making population'))                
         else:
-            self.listen('initial population')
+            self.listen('initial population', self.primary)
 
     def add_to_simulation(self, agent):
         """
@@ -104,7 +103,7 @@ class CommunityDistributed(Community.Community):
         self.pipes[agent.grid_queue].send("add")
         self.pipes[agent.grid_queue].send(agent)
         
-    def listen(self, for_what, from_whom = 0):
+    def listen(self, for_what, from_whom):
         """
         Method for receiving messages from other communities and responding
         accordingly.
