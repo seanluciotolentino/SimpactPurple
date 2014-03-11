@@ -15,8 +15,8 @@ class CommunityDistributed(Community.Community):
         self.primary = primary
         self.is_primary = self.rank == primary
         self.others = others
-        self.partition = lambda agent: int(agent.attributes["LOC"][0][0] * self.size)
- 
+	self.size = len(self.others) 
+
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
         
@@ -78,9 +78,11 @@ class CommunityDistributed(Community.Community):
         self.network.add_node(agent)
         
         #location
-        agent.attributes["LOC"] = np.random.rand(1,2) # should be generic to dimensions
-        agent.partition = self.partition(agent)
-        if agent.partition is not self.rank:
+        partitions = list(self.others)
+	partitions.append(self.primary)  # only primary calls this so same as self.rank
+	agent.partition = partitions[random.randint(len(partitions))]
+
+	if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
         self.add_to_grid_queue(agent)
         

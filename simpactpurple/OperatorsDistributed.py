@@ -23,7 +23,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
             self.master.broadcast(('done','updating relationships'))
         else:
             # recv agents and add to right grid queue
-            self.master.listen('relationship updates', self.primary)
+            self.master.listen('relationship updates', self.master.primary)
         self.already_added = []  # reset relationships formed this round
 
         #1.1 Recruit
@@ -46,7 +46,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         else:
             #finish sending relationships to other community
             self.master.comm.send(('done','sending matches'), dest = 0)
-            self.master.listen('matched agent removals', self.primary)
+            self.master.listen('matched agent removals', self.master.primary)
     
     def recruit(self):
         """
@@ -158,7 +158,7 @@ class TimeOperator(Operators.TimeOperator):
 
         #1. non-primary: listen for updates
         if not self.master.is_primary:  # wait for updates about agents
-            self.master.listen('time operations', self.primary)
+            self.master.listen('time operations', self.master.primary)
             return
         
         #2. primary: check age consistency of agents
