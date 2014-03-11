@@ -7,7 +7,7 @@ import time as Time
 
 class CommunityDistributed(Community.Community):
 
-    def __init__(self, comm, primary, others):
+    def __init__(self, comm, primary, others, migration = False):
         Community.Community.__init__(self)
         #Distributed parameters
         self.comm = comm
@@ -15,7 +15,8 @@ class CommunityDistributed(Community.Community):
         self.primary = primary
         self.is_primary = self.rank == primary
         self.others = others
-	self.size = len(self.others) 
+        self.size = len(self.others) 
+        self.migration = migration
 
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
@@ -65,7 +66,8 @@ class CommunityDistributed(Community.Community):
         if self.is_primary:
             Community.Community.make_population(self, size)
             if self.time <=0:
-                self.broadcast(('done','making population'))                
+                self.broadcast(('done','making population')) 
+                self.send(('done','making population'), dest = 0)
         else:
             self.listen('initial population', self.primary)
 
@@ -74,15 +76,21 @@ class CommunityDistributed(Community.Community):
         Save the agent's name for future reference, add to network, assign
         a location, and add to grid queue.
         """
-        self.agents[agent.attributes["NAME"]] = agent
+        agent_name = agent.attributes["NAME"]
+        if agent_name in self.agents:  # migration back
+            agent = self.agents[agent_name]
+        else:
+            self.agents[agent_name] = agent
+            self.comm.send(('add',agent_name), dest = 0)
+        
         self.network.add_node(agent)
         
         #location
         partitions = list(self.others)
-	partitions.append(self.primary)  # only primary calls this so same as self.rank
-	agent.partition = partitions[random.randint(len(partitions))]
+        partitions.append(self.primary)  # only primary calls this so same as self.rank
+        agent.partition = partitions[random.randint(len(partitions))]
 
-	if agent.partition is not self.rank:
+    	if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
         self.add_to_grid_queue(agent)
         
@@ -151,14 +159,32 @@ class CommunityDistributed(Community.Community):
         """
         Take a single time step (one week) in the simulation. 
         """
-	    #1. Time progresses
-        self.time_operator.step()
+        #1. Proceede normally
+        Community.Community.step(self)
+            
+        #2. Migration operations
+        if not self.migration:
+            return
         
-        #2. Form and dissolve relationships
-        self.relationship_operator.step()
-        
-        #3. HIV transmission
-        self.infection_operator.step()
+        if self.primary:
+            #0.1 Remove some agents (migrate away)
+            removals = self.comm.recv(source = 0)
+            for agent_name in removals:
+                agent = self.agents[agent_name]
+                self.time_operator.remove(agent)
+                
+            #0.2 Add some agents (migrate in)
+            additions = self.comm.recv(source = 0)
+            for agent_name in additions:
+                agent = self.agents[agent_name]
+                self.add_to_simulation(agent)
+                
+            #0.3 finish
+            self.broadcast('done')
+        else:
+            self.listen('migration updates', self.primary)
+            
+
 
     def make_operators(self):
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
