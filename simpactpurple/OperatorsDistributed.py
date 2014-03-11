@@ -249,6 +249,9 @@ class InfectionOperator(Operators.InfectionOperator):
         """
         Seeds the population with *initial_prevalence* at *seed_time*.
         """
+        if not self.master.is_primary:
+            return
+            
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
         for i in range(infections):
             agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]

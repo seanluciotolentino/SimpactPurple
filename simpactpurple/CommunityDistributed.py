@@ -36,7 +36,7 @@ class CommunityDistributed(Community.Community):
         
         #infection operator
         self.INFECTIVITY = 0.01
-        self.INTIIAL_PREVALENCE = 0  # while there's not infection operator...
+        self.INTIIAL_PREVALENCE = 0.01  # while there's not infection operator...
         self.SEED_TIME = 0  # in years        
 
         #time operator
