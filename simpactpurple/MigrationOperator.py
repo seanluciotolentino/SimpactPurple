@@ -12,7 +12,8 @@ class MigrationOperator:
     
     def __init__(self, comm):
         self.comm = comm
-        self.agents = {}
+        self.agents = {}  # rank -> [list of agents on rank]
+        self.all_agents = {}  # agent_name -> agent
 
         #define primaries and communities:
         self.communities = {1:3, 4:2}
@@ -34,7 +35,8 @@ class MigrationOperator:
                                     [0.2, 0.8]])
         """
         self.migration = {(1,4):0.1, (4,1):0.2}  # (src, dest) -> fraction
-        self.time = 0
+        #self.migration = {(1,4):0.0, (4,1):0.0}  # try it with no migration first
+	self.time = 0
         self.rank = self.comm.Get_rank()    
         
     def run(self):
@@ -43,7 +45,6 @@ class MigrationOperator:
             
         #mainloop
         for t in range(int(self.NUMBER_OF_YEARS*52)):
-            print 'MO time',t
             self.time = t
             self.listen_all('community updates')
             moving = {}
@@ -52,7 +53,9 @@ class MigrationOperator:
             for edge in self.migration:
                 source,destination = edge
                 moving[edge] = [agent for agent in self.agents[source] if random.random() < self.migration[edge]]
-                self.comm.send(moving[source], dest = source)
+                for agent in moving[edge]:
+                    agent.attributes["MIGRATION"].append((self.time, source, destination))
+                self.comm.send(moving[edge], dest = source)
             
             #send additions
             for edge in self.migration:
@@ -76,14 +79,14 @@ class MigrationOperator:
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        print "v=== listen for",for_what,"| STARTED ON",self.rank,"|time",self.time,"===v"
+        #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
         req = self.comm.irecv(dest = from_whom)  # data depends on msg
         while True:
             #continually check that a message was received
             flag, message = req.test()
             if not flag: continue
             msg, agent = message
-            print "  > listening on",self.rank,"| msg:",msg,"agent:",agent
+            #print "  > listening on",self.rank,"| msg:",msg,"agent:",agent
             if msg == 'done':
                 break
             req = self.comm.irecv(dest = from_whom)  # listen for next message
@@ -91,8 +94,11 @@ class MigrationOperator:
             #parse message and act            
             if msg == 'add':
                 self.agents[from_whom].append(agent)
+                self.all_agents[agent.attributes["NAME"]] = agent
             elif msg == 'remove':
+                agent = self.all_agents[agent]  # convert name to known agent
+                agent.attributes["MIGRATION"].append((self.time, from_whom, 0))
                 self.agents[from_whom].remove(agent)
         
-        print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
-        print
+        #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
+        #print

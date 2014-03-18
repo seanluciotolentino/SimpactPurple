@@ -293,8 +293,24 @@ def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
             age = s.age(agent)*52;  #convert age to weeks
             age_at_t = age - now + t;
 
-            if (agent.attributes["TIME_ADDED"]>= t or agent.attributes["TIME_REMOVED"] <= t):
+            if agent.attributes["TIME_ADDED"]>= t or agent.attributes["TIME_REMOVED"] <= t:
                 continue  # skip if the agent wasn't born yet or has been removed
+                
+            if hasattr(s,'migration'):
+                #find nearest migration timestamp
+                before_time = -np.inf
+                before = None           
+                for timestamp in agent.attributes["MIGRATION"]:
+                    if timestamp[0] > before_time and timestamp[0] <= t:
+                        before_time = timestamp[0]
+                        before = timestamp
+
+                #if didn't migrate here in most previous timestep
+                if before[2] is not s.rank:
+                    #print "time",t,"before",before,"migration",agent.attributes["MIGRATION"]
+                    continue
+                
+                    
 
             age_at_t /= 52  # convert back to years
             level = min(num_boxes-1,int(math.floor( age_at_t / box_size)));

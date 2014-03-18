@@ -110,7 +110,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
             else:
                 suitor = suitor.attributes["NAME"]
                 match = match.attributes["NAME"]
-                self.master.comm.send(('add_relationship',(suitor,match)), dest = 0)
+                self.master.comm.send(('add_relationship',(suitor,match)), dest = self.master.primary)
 
     def form_relationship(self, agent1, agent2):
         #check agents haven't already formed a relationship this round
@@ -169,6 +169,7 @@ class TimeOperator(Operators.TimeOperator):
             #2.1 remove if older than max age of simulation
             if self.master.age(agent) >= self.master.MAX_AGE:
                 self.remove(agent)
+                self.replace(agent)
                 continue  # go to the next agent
             
             #2.2 move gq if older than max age of grid queue
@@ -190,7 +191,7 @@ class TimeOperator(Operators.TimeOperator):
                 
     def remove(self, agent):
         agent_name = agent.attributes["NAME"]
-        
+    
         #1. End current relationships
         relations = self.master.network.edges(agent)
         for r in relations:
@@ -214,7 +215,12 @@ class TimeOperator(Operators.TimeOperator):
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
         
-        #3. Replace with new young agent
+        #3. Update migration variables
+        if self.master.migration:
+            agent.attributes["MIGRATION"].append((self.master.time, self.master.rank, 0))
+            self.master.comm.send(('remove',agent_name), dest = 0)
+        
+    def replace(self, agent):
         self.master.make_population(1)
         
 class InfectionOperator(Operators.InfectionOperator):
@@ -233,16 +239,16 @@ class InfectionOperator(Operators.InfectionOperator):
         """
         if not self.master.is_primary:
             return
-        
+            
         #Go through edges and flip coin for infections
         now = self.master.time
         relationships = self.master.network.edges()
         for r in relationships:
             #print "now:",now,"|",r[0].time_of_infection, r[0].time_of_infection<now, r[1].time_of_infection, r[1].time_of_infection>now
-            if(r[0].time_of_infection < now and r[1].time_of_infection > now and random.random() < self.master.INFECTIVITY):
+            if (r[0].time_of_infection < now and r[1].time_of_infection > now) and random.random() < self.master.INFECTIVITY:
                 r[1].time_of_infection = now
                 continue
-            if(r[1].time_of_infection < now and r[0].time_of_infection > now and random.random() < self.master.INFECTIVITY):
+            if (r[1].time_of_infection < now and r[0].time_of_infection > now) and random.random() < self.master.INFECTIVITY:
                 r[0].time_of_infection = now
 
     def perform_initial_infections(self, initial_prevalence, seed_time):
@@ -251,8 +257,8 @@ class InfectionOperator(Operators.InfectionOperator):
         """
         if not self.master.is_primary:
             return
-            
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
+
         for i in range(infections):
             agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
             agent.time_of_infection = seed_time * 52

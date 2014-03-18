@@ -14,7 +14,7 @@ import CommunityDistributed
 import GraphsAndData
 import sys
 
-print "hello from", MPI.Get_processor_name(),"rank",MPI.COMM_WORLD.Get_rank()
+#print "hello from", MPI.Get_processor_name(),"rank",MPI.COMM_WORLD.Get_rank()
 
 #MPI variables
 name = MPI.Get_processor_name()
@@ -23,16 +23,19 @@ others = range(comm.Get_size())
 others.remove(comm.Get_rank())
 c = CommunityDistributed.CommunityDistributed(comm, 0, others)
 c.INITIAL_POPULATION = int(sys.argv[1])
+if len(sys.argv)>=3:
+    c.probability_multiplier = float(sys.argv[2])
 c.NUMBER_OF_YEARS = 30
 c.run()
 
 if comm.Get_rank() == 0:
-	#GraphsAndData.formed_relations_graph(c,filename='formed_relations'+name+'.png')
-	#GraphsAndData.sexual_network_graph(c,filename='sexual_network'+name+'.png')
-	#GraphsAndData.demographics_graph(c,filename='demographics'+name+'.png')
-	#GraphsAndData.prevalence_graph(c, filename='prevalence'+name+'.png')
-	#GraphsAndData.age_mixing_graph(c, filename='agemixing'+name+'.png')
-	#GraphsAndData.relationship_durations(c, filename='durations'+name+'.png')
-	#GraphsAndData.gap_lengths(c, filename='gaplengths'+name+'.png')
-	pass
-print "exit"
+    #GraphsAndData.formed_relations_graph(c,filename='formed_relations_distributed.png')
+	#GraphsAndData.sexual_network_graph(c,filename='sexual_network_distributed.png')
+	#GraphsAndData.demographics_graph(c,filename='demographics_distributed.png')
+	#GraphsAndData.prevalence_graph(c, filename='prevalence_distributed.png')
+	#GraphsAndData.age_mixing_graph(c, filename='agemixing_distributed.png')
+	#GraphsAndData.relationship_durations(c, filename='durations_distributed.png')
+	#GraphsAndData.gap_lengths(c, filename='gaplengths_distributed.png')
+    print len(c.network.edges())
+    pass
+#print "exit"

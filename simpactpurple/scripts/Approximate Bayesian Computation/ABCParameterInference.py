@@ -101,7 +101,7 @@ if __name__ == '__main__':
         s = Community.Community()
         # set constants
         s.INITIAL_POPULATION = 1000  # scale this up later?
-        s.NUMBER_OF_YEARS = 18
+        s.NUMBER_OF_YEARS = 15
         
         # set parameters
         s.probability_multiplier = prior[1]()

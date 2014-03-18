@@ -40,8 +40,8 @@ class Community():
         #MODEL OPERATORS
         #hazard
         self.preferred_age_difference = -0.1
-        self.probability_multiplier = -0.1
-        self.preferred_age_difference_growth = 5
+        self.probability_multiplier = -0.2
+        self.preferred_age_difference_growth = 0.1
         
         #relationship operator
         self.SEXES = 2
@@ -49,7 +49,7 @@ class Community():
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
         self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
-        self.DURATIONS = lambda a1, a2: 52*random.exponential(0.9)
+        self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*10*random.exponential(5)
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -57,14 +57,14 @@ class Community():
         self.SEED_TIME = 0  # in years        
 
         #time operator
-        self.time = 0
+        self.time = -1
                 
         #MODEL POPULATION
         self.INITIAL_POPULATION = 100
         self.AGENT_ATTRIBUTES = {}
         self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
         self.SEX = lambda: random.randint(self.SEXES)
-        self.DNP = lambda: random.power(0.2)*(4)
+        self.DNP = lambda: random.power(0.1)*1.5
         
     def run(self, timing=False):
         """

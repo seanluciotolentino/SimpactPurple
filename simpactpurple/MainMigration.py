@@ -45,8 +45,8 @@ else:
     c.run()
     
     if c.is_primary:
-	GraphsAndData.formed_relations_graph(c,filename='formed_relations'+str(c.rank)+'.png')
-	GraphsAndData.demographics_graph(c,filename='demographics'+str(c.rank)+'.png')
-	GraphsAndData.prevalence_graph(c,filename='prevalence'+str(c.rank)+'.png')
+    	GraphsAndData.formed_relations_graph(c,filename='formed_relations'+str(c.rank)+'.png')
+    	GraphsAndData.demographics_graph(c,filename='demographics'+str(c.rank)+'.png')
+    	GraphsAndData.prevalence_graph(c,filename='prevalence'+str(c.rank)+'.png')
 
 print "exit"

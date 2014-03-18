@@ -165,6 +165,7 @@ class TimeOperator():
             #if too old
             if self.master.age(agent) >= self.master.MAX_AGE:
                 self.remove(agent)
+                self.replace(agent)
                 continue  # go to the next agent
                 
             #if (assigned to wrong gq) and (needs to be in gq)
@@ -203,7 +204,7 @@ class TimeOperator():
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
         
-        #replace
+    def replace(self, agent):
         self.master.make_population(1)
 
 class InfectionOperator():

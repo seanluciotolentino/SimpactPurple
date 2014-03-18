@@ -17,7 +17,7 @@ class CommunityDistributed(Community.Community):
         self.others = others
         self.size = len(self.others) 
         self.migration = migration
-        print "checking in: rank",comm.Get_rank(),"primary",primary, "others",others,"migration",self.migration
+        #print "checking in: rank",comm.Get_rank(),"primary",primary, "others",others,"migration",self.migration
         
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
@@ -25,7 +25,7 @@ class CommunityDistributed(Community.Community):
         #MODEL OPERATORS
         #hazard
         self.preferred_age_difference = -0.1
-        self.probability_multiplier = -0.1
+        self.probability_multiplier = -0.2
         self.preferred_age_difference_growth = 0.1
         
         #relationship operator
@@ -34,7 +34,7 @@ class CommunityDistributed(Community.Community):
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
         self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
-        self.DURATIONS = lambda a1, a2: 52*random.exponential(0.9)
+        self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*10*random.exponential(5)  # scale*expo(shape)
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -42,20 +42,20 @@ class CommunityDistributed(Community.Community):
         self.SEED_TIME = 0  # in years        
 
         #time operator
-        self.time = 0
+        self.time = -1  # initialization time
                 
         #MODEL POPULATION
-        self.INITIAL_POPULATION = 300
+        self.INITIAL_POPULATION = 100
         self.AGENT_ATTRIBUTES = {}
         self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
         self.SEX = lambda: random.randint(self.SEXES)
-        self.DNP = lambda: random.power(0.2)*(4)
+        self.DNP = lambda: random.power(0.1)*1.5  #power(shape)*scale
         
     def broadcast(self, message):
         """
         A function which sends message to all nodes. This is necessary b/c
         comm.bcast has buggy performance.
-        """
+        """        
         for other in self.others:
             self.comm.send(message, dest = other)
     
@@ -66,9 +66,10 @@ class CommunityDistributed(Community.Community):
         """
         if self.is_primary:
             Community.Community.make_population(self, size)
-            if self.time <=0:
+            if self.time < 0:
                 self.broadcast(('done','making population')) 
-                self.comm.send(('done','making population'), dest = 0)
+                if self.migration:
+                    self.comm.send(('done','making population'), dest = 0)
         else:
             self.listen('initial population', self.primary)
 
@@ -77,7 +78,7 @@ class CommunityDistributed(Community.Community):
         Save the agent's name for future reference, add to network, assign
         a location, and add to grid queue.
         """
-        if '-' not in agent.attributes["NAME"]:
+        if type(agent.attributes["NAME"]) == type(0):
             agent.attributes["NAME"] = str(self.primary) + "-" + str(agent.attributes["NAME"])
         
         self.agents[agent.attributes["NAME"]] = agent
@@ -89,7 +90,8 @@ class CommunityDistributed(Community.Community):
         agent.partition = partitions[random.randint(len(partitions))]
         if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
-        if self.migration:
+        if self.migration:  # and not a update add
+            agent.attributes["MIGRATION"] = [(self.time, 0, self.rank)]
             self.comm.send(('add',agent), dest = 0)
         self.add_to_grid_queue(agent)
         
@@ -117,14 +119,14 @@ class CommunityDistributed(Community.Community):
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        print "v=== listen for",for_what,"| STARTED ON",self.rank,"|time",self.time,"===v"
+        #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
         req = self.comm.irecv(dest = from_whom)  # data depends on msg
         while True:
             #continually check that a message was received
             flag, message = req.test()
             if not flag: continue
             msg, data = message
-    	    print "  > listening on",self.rank,"| msg:",msg,"data:",data
+    	    #print "  > listening on",self.rank,"| msg:",msg,"data:",data
             if msg == 'done':
                 break
             req = self.comm.irecv(dest = from_whom)  # listen for next message
@@ -151,8 +153,8 @@ class CommunityDistributed(Community.Community):
                 agent = data  # data is agent object here
                 self.main_queue.push(agent.grid_queue, agent)
                     
-        print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
-        print
+        #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
+        #print
 
     def step(self):
         """
@@ -164,33 +166,35 @@ class CommunityDistributed(Community.Community):
         #2. Migration operations
         if not self.migration:
             return
-        
-        if self.primary:
-            self.comm.send(('done','updating'), dest = 0)
 
+        if self.is_primary:
+            self.comm.send(('done','updating'), dest = 0)
+            #print '-----primary',self.rank,'migration operations-----'
+            self.migration = False  # temp disable 'add' and 'remove' messages to MO
             #0.1 Remove some agents (migrate away)
             removals = self.comm.recv(source = 0)
+            #print self.rank,"  received removals:",[a.attributes["NAME"] for a in removals]
             for removed in removals:
                 agent = self.agents[removed.attributes["NAME"]]
                 self.time_operator.remove(agent)
                 
             #0.2 Add some agents (migrate in)
             additions = self.comm.recv(source = 0)
+            #print self.rank,"  received additions:",[a.attributes["NAME"] for a in additions]
+            #iself.migration = False  # so 'add' message not sent to MO
             for agent in additions:
                 self.add_to_simulation(agent)
-                
+                #print "    -",agent.attributes["NAME"],"in network:",agent in self.network
+            self.migration = True
+                        
+            
             #0.3 finish
             self.broadcast(('done','migration updating'))
+            #print '-----end migration operations----------'
         else:
             self.listen('migration updates', self.primary)
             
-
-
     def make_operators(self):
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
         self.infection_operator = OperatorsDistributed.InfectionOperator(self)
         self.time_operator = OperatorsDistributed.TimeOperator(self)
-            
-
-
-
