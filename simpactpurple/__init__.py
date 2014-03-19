@@ -12,7 +12,7 @@ import numpy.random as random
 import multiprocessing
 
 class Agent():
-    def __init__(self, attributes):
+    def __init__(self):
         """
         all these variables are set in the make_population. Initialized here
         as None to emphasis their existence
@@ -24,7 +24,7 @@ class Agent():
     
         self.time_of_infection = np.Inf 
         self.last_match = -np.Inf
-        self.attributes = attributes
+        self.attributes = {}
         
     def __str__(self):
         return "Name: " + str(self.attributes["NAME"])
@@ -93,6 +93,7 @@ class Community():
         structures independent from the run method.
         """
         #basic structures
+        self.time = -1
         self.network = nx.Graph()
         self.agents = {}  # {agent_name : agent}
         self.relationships = []
@@ -144,12 +145,13 @@ class Community():
         After an agent receives a name, age, sex, and DNP, he or she is added
         to the network graph and added to a grid queue.
         """ 
-        self.AGENT_ATTRIBUTES["TIME_ADDED"] = self.time
-        self.AGENT_ATTRIBUTES["TIME_REMOVED"] = np.Inf
+        
         for i in range(size):
             #make agent and add some attributes
-            a = Agent(self.AGENT_ATTRIBUTES.copy())
+            a = Agent()
             a.attributes["NAME"] = len(self.agents)  # not i b/c replacement
+            a.attributes["TIME_ADDED"] = self.time
+            a.attributes["TIME_REMOVED"] = np.Inf
             a.born = self.BORN()
             a.sex = self.SEX()
             a.dnp = self.DNP()

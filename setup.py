@@ -14,7 +14,6 @@ setup(
     description='Agent-based HIV modeling tool.',
     long_description=open('README.md').read(),
     install_requires=[
-        "numpy >= 1.1.1",
         "networkx >= 0.1.4",
     ],
 )

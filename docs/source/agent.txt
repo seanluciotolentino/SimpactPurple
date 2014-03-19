@@ -1,7 +1,5 @@
 Agent
 =======================
 
-.. automodule:: Agent
-   
-.. autoclass:: Agent.Agent
+.. autoclass:: __init__.Agent
    :members: 
