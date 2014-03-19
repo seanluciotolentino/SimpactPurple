@@ -47,6 +47,7 @@ You can also customize things like agents preferred degreed (desired number of p
 >>> s.SEX = lambda: random.random < 0.25  # prob[agent == male] = 0.25
 >>> s.run()
 
+For more examples check out the example scripts in the /bin folder in the home directory.
 
 More Advanced Use
 -----------------------------
