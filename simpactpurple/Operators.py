@@ -31,7 +31,7 @@ class RelationshipOperator():
         #1. Recruit
         for i in range(int(self.master.MAIN_QUEUE_MAX * len(self.master.agents))):  # *** do this better
             self.recruit()
-            
+        
         #2. Match
         while not self.master.main_queue.empty():
             self.match()
@@ -118,7 +118,7 @@ class RelationshipOperator():
         Dissolves a relationship between agent1 and agent2.
         """
         self.master.network.remove_edge(agent1, agent2)
-        
+
         #add agents into appropriate grid queues
         self.master.add_to_grid_queue(agent1)
         self.master.add_to_grid_queue(agent2)
@@ -165,6 +165,7 @@ class TimeOperator():
             #if too old
             if self.master.age(agent) >= self.master.MAX_AGE:
                 self.remove(agent)
+                self.replace(agent)
                 continue  # go to the next agent
                 
             #if (assigned to wrong gq) and (needs to be in gq)
@@ -203,7 +204,7 @@ class TimeOperator():
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
         
-        #replace
+    def replace(self, agent):
         self.master.make_population(1)
 
 class InfectionOperator():

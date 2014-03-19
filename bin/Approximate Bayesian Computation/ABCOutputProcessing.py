@@ -44,7 +44,7 @@ def make_multiple_partners_figure(data, lowerbound, upperbound, rows, title):
     for index in range(6):
         plt.subplot(3,2,index+1)    
         #simulation distribution
-        plt.hist(accepted[:,rows[index]], normed=True, bins = 20, color = col)
+        plt.hist(accepted[:,rows[index]], normed=True, bins = range(0,100,2), color = col)
         #data values
         value = data[index]
         lb = lowerbound[index]
@@ -74,7 +74,7 @@ def make_intergenerational_figure(data, lowerbound, upperbound, rows, title):
     for index in range(4):
         plt.subplot(2,2,index+1)    
         #simulation distribution
-        plt.hist(accepted[:,rows[index]], normed=True, bins = 20, color = col)
+        plt.hist(accepted[:,rows[index]], normed=True, bins = range(0,100,5), color = col)
         #data values
         value = data[index]
         lb = lowerbound[index]
@@ -99,14 +99,15 @@ def make_intergenerational_figure(data, lowerbound, upperbound, rows, title):
 #################################################################
 #%% Script starts here!
 np.set_printoptions(precision=2, suppress=True)
-threshold = 300
+threshold = 250
 red_marker_location = 0.15  # for showing survey data
 ylimit = 0.20  # upper y-lim for graphs
-col = 'g'  # color of bars
+col = 'b'  # color of bars
 save = True  # save to file?
 
 data = load_data()
-accepted = data[data[:,-1]<=threshold,:]
+#accepted = data[data[:,-1]<=threshold,:]
+accepted = data[np.random.random((len(data),1))[:,0]<=0.02,:]
 
 #%% Posterior Distributions
 parameters = ["Probability Multiplier", "Preferred Age Difference",
@@ -125,11 +126,11 @@ for i in range(7):
     plt.xlim(limits[i])
     plt.ylabel("Frequency")
 if save:
-    plt.savefig('ABCgraphs/posterior.png')
+    plt.savefig('ABCgraphs/posterior_'+col+'.png')
 
 #%% Distribution of distances
 plt.figure()
-hist = plt.hist(data[:,-1], bins = range(0,2000,100), color = col)
+hist = plt.hist(data[:,-1], bins = range(0,2000,50), color = col)
 plt.title("Distribution of Simulation Distances")
 plt.xlabel("Distance from Survey")
 plt.ylabel("Frequency")
@@ -142,7 +143,7 @@ acceptance_rate = str(round(len(accepted)/float(len(data)),2))
 plt.text(x=threshold,y=max(hist[0])+space*2,s=("  # Accepted: "+str(len(accepted))+" of "+str(len(data))))
 plt.text(x=threshold,y=max(hist[0])+space*1,s=("  % Accepted: "+acceptance_rate))
 if save:
-    plt.savefig('ABCgraphs/distance_distribution.png')
+    plt.savefig('ABCgraphs/distance_distribution_'+col+'.png')
 
 #%% Multiple Partners for 15-24 year olds
 survey_data = [23.0,8.8,27.2,6.0,30.8,6.0]
@@ -151,7 +152,7 @@ ub = [27.5,11,32,7.5,35.5,7.5]
 rows = [16, 17, 22, 23, 28, 29]
 make_multiple_partners_figure(survey_data,lb,ub,rows,"15-24 y.o. with Multiple Partners")
 if save:
-    plt.savefig('ABCgraphs/mp_young.png')
+    plt.savefig('ABCgraphs/mp_young_'+col+'.png')
 
 #%% Multiple Partners for 25-49 year olds
 survey_data = [11.5,2.5,14.4,1.8,14.8,3.0]
@@ -160,7 +161,7 @@ ub = [13,3,17.5,2.5,17.5,4]
 rows = [18, 19, 24, 25, 30, 31]
 make_multiple_partners_figure(survey_data,lb,ub,rows,"25-49 y.o. with Multiple Partners")
 if save:
-    plt.savefig('ABCgraphs/mp_adult.png')
+    plt.savefig('ABCgraphs/mp_adult_'+col+'.png')
 
 #%% Multiple Partners for 50+ year olds
 survey_data = [7.5,0.6,9.8,0.3,3.7,0.8]
@@ -169,7 +170,11 @@ ub = [10.5,1,14.8,0.8,5.5,0.5]
 rows = [20, 21, 26, 27, 32, 33]
 make_multiple_partners_figure(survey_data,lb,ub,rows,"50+ y.o. with Multiple Partners")
 if save:
-    plt.savefig('ABCgraphs/mp_old.png')
+    plt.savefig('ABCgraphs/mp_old_'+col+'.png')
+
+#change this for generational graphs
+red_marker_location = 0.10  # for showing survey data
+ylimit = 0.12  # upper y-lim for graphs
 
 #non-Intergenerational relationships
 survey_data = [98.0,81.4,98.5,72.4]
@@ -178,7 +183,7 @@ ub = [99.0,86.1,99.4,78.3]
 rows = [8, 10, 12, 14]
 make_intergenerational_figure(survey_data, lb, ub, rows, "Non-Intergenerational Relationships")
 if save:
-    plt.savefig('ABCgraphs/noninter.png')
+    plt.savefig('ABCgraphs/noninter_'+col+'.png')
 
 #Non-intergenerational relationships
 survey_data = [2.0,18.5,0.7,27.6]
@@ -187,4 +192,4 @@ ub = [4.2,24.4,2.7,34.5]
 rows = [9, 11, 13, 15]
 make_intergenerational_figure(survey_data, lb, ub, rows, "Intergenerational Relationships")
 if save:
-    plt.savefig('ABCgraphs/inter.png')
+    plt.savefig('ABCgraphs/inter_'+col+'.png')

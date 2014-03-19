@@ -2,7 +2,7 @@
 The module for the GridQueue class and function for listening.
 """
 import random
-import PriorityQueue #lucio's implementation
+import PriorityQueue  # lucio's implementation
 import numpy as np
 import sys
 

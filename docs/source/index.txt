@@ -15,8 +15,6 @@ Contents:
    gridqueue
    agent
    graphs
-   cluster
-   clusterclasses
 
 Indices and tables
 ==================

@@ -8,15 +8,15 @@ Run a Simulation
 
 Create a community with default settings and run the simulation:
 
->>> import Community 
->>> s = Community.Community()
+>>> import simpactpurple 
+>>> s = simpactpurple.Community()
 >>> s.run()
 
 We can visualize the result with the GraphsAndData_ module:
 
 .. _GraphsAndData: graphs.html
 
->>> import GraphsAndData
+>>> import simpactpurple.GraphsAndData as GraphsAndData
 >>> GraphsAndData.age_mixing_graph(s)
 >>> GraphsAndData.sexual_network_graph(s)
 
@@ -35,15 +35,21 @@ Or investigate agents and relationships ourselves:
 
 We can change some of the default values, including initial population and number of years to simulate:
 
->>> s = Community.Community()
+>>> s = simpactpurple.Community()
 >>> s.INITIAL_POPULATION = 100
 >>> s.NUMBER_OF_YEARS = 30
 >>> s.run()
 
+You can also customize things like agents preferred degreed (desired number of partners -- DNP) or the gender ratio:
+
+>>> s = simpactpurple.Community()
+>>> s.DNP = lambda: 2  # every agent has a DNP of 2
+>>> s.SEX = lambda: random.random < 0.25  # prob[agent == male] = 0.25
+>>> s.run()
+
+For more examples check out the example scripts in the /bin folder in the home directory.
+
 More Advanced Use
 -----------------------------
-Currently changing the make-up of the initial population or the hazard of forming a relationship requires changing the source code in Community.py_. Future releases will make this easier, but is not possible at this point.
+Currently changing the hazard of forming a relationship requires changing the source code in __init__.py. Future releases will make this easier, but is not possible at this point.
 
-If, for example, the user wants to change the degree distribution, she would need to change the function for *dnp* in the make_population method.
-
-.. _Community.py: community.html

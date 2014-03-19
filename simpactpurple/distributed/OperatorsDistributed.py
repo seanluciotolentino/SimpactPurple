@@ -5,7 +5,7 @@ based on location.
 import Queue
 import numpy.random as random
 import numpy as np
-import Operators
+import simpactpurple.Operators as Operators
 
 class RelationshipOperator(Operators.RelationshipOperator):
     """
@@ -17,33 +17,36 @@ class RelationshipOperator(Operators.RelationshipOperator):
         Take a single time step in the simulation. 
         """
         #0. Dissolve relationships
-        if self.master.primary:
+        if self.master.is_primary:
             # sends agents back to right grid queues
             self.update()
-            self.master.comm.send(('done','updating relationships'), dest = self.master.other)
+            self.master.broadcast(('done','updating relationships'))
         else:
             # recv agents and add to right grid queue
-            self.master.listen('relationship updates')
+            self.master.listen('relationship updates', self.master.primary)
+        self.already_added = []  # reset relationships formed this round
 
         #1.1 Recruit
         for i in range(int(0.5 * self.master.MAIN_QUEUE_MAX * len(self.master.agents))):  # *** do this better
             self.recruit()
-        self.master.comm.send(('done','recruiting'), dest = self.master.other)
+        self.master.broadcast(('done','recruiting'))
         #1.2 Swap
-        self.master.listen('new recruits')
+        for other in self.master.others:
+            self.master.listen('new recruits', from_whom = other)
 
         #2.1 Match
         while(not self.master.main_queue.empty()):
             self.match()
         #2.2 Sync
-        if self.master.primary:
+        if self.master.is_primary:
             #add relationships from other commmunity
-            self.master.listen('non-primary relationship')
-            self.master.comm.send(('done','adding matches'), dest = self.master.other)
+            for other in self.master.others:
+                self.master.listen('non-primary relationship', from_whom = other)
+            self.master.broadcast(('done','adding matches'))
         else:
             #finish sending relationships to other community
-            self.master.comm.send(('done','sending matches'), dest = self.master.other)
-            self.master.listen('matched agent removals')
+            self.master.comm.send(('done','sending matches'), dest = self.master.primary)
+            self.master.listen('matched agent removals', self.master.primary)
     
     def recruit(self):
         """
@@ -60,10 +63,11 @@ class RelationshipOperator(Operators.RelationshipOperator):
             agent = self.master.agents[agent_name]
             
             #send half of agents to other
-            if random.random() < 0.5:
-                self.master.main_queue.push(gq.my_index, agent)
+            if random.random() < 1.0/self.master.size:
+                self.master.main_queue.push(gq.my_index, agent)  # keep agent
             else:
-                self.master.comm.send(('push',agent), dest = self.master.other)
+                self.master.comm.send(('push',agent),
+                                      dest=self.master.others[random.randint(len(self.master.others))])
     
     def match(self):
         """
@@ -99,23 +103,32 @@ class RelationshipOperator(Operators.RelationshipOperator):
         match = top[1]
         accept = top[0]
         if accept:
-            if self.master.primary:
+            if self.master.is_primary:
                 suitor = self.master.agents[suitor.attributes["NAME"]]  # grab the appropriate agent
                 match = self.master.agents[match.attributes["NAME"]]
                 self.form_relationship(suitor,match)
             else:
                 suitor = suitor.attributes["NAME"]
                 match = match.attributes["NAME"]
-                self.master.comm.send(('add_relationship',(suitor,match)), dest = self.master.other)
+                self.master.comm.send(('add_relationship',(suitor,match)), dest = self.master.primary)
 
     def form_relationship(self, agent1, agent2):
+        #check agents haven't already formed a relationship this round
+        for agent in [agent1, agent2]:
+            agent_name = agent.attributes["NAME"]
+            if agent_name in self.already_added:
+                return
+        self.already_added+=[agent1.attributes["NAME"], agent2.attributes["NAME"]]
+        
+        #actually form the relationship        
         Operators.RelationshipOperator.form_relationship(self, agent1, agent2)
         
+        #remove from grid queue if necessary
         for agent in [agent1, agent2]:
             agent_name = agent.attributes["NAME"]
             if self.master.network.degree(agent) >= agent.dnp:
-                if agent.attributes["LOC"][0][0] > 0.5:
-                    self.master.comm.send(('remove',agent_name), dest = self.master.other)
+                if agent.partition is not self.master.rank:
+                    self.master.comm.send(('remove',agent_name), dest = agent.partition)
                 else:
                     self.master.pipes[agent.grid_queue].send("remove")
                     self.master.pipes[agent.grid_queue].send(agent_name)
@@ -144,8 +157,8 @@ class TimeOperator(Operators.TimeOperator):
             gq.time = self.master.time
 
         #1. non-primary: listen for updates
-        if not self.master.primary:  # wait for updates about agents
-            self.master.listen('time operations')
+        if not self.master.is_primary:  # wait for updates about agents
+            self.master.listen('time operations', self.master.primary)
             return
         
         #2. primary: check age consistency of agents
@@ -156,15 +169,15 @@ class TimeOperator(Operators.TimeOperator):
             #2.1 remove if older than max age of simulation
             if self.master.age(agent) >= self.master.MAX_AGE:
                 self.remove(agent)
+                self.replace(agent)
                 continue  # go to the next agent
             
             #2.2 move gq if older than max age of grid queue
-	    gq = self.master.grid_queues[agent.grid_queue]
-            if not gq.accepts(agent):
+            gq = self.master.grid_queues[agent.grid_queue]
+            if not gq.accepts(agent) and self.master.network.degree(agent) <= agent.dnp:
                 #2.2.1 remove from current gq
-                loc = agent.attributes["LOC"][0][0]
-                if self.master.primary and loc>0.5:
-                    self.master.comm.send(('remove',agent_name), dest=self.master.other)
+                if agent.partition is not self.master.rank:
+                    self.master.comm.send(('remove',agent_name), dest=agent.partition)
                 else:
                     agent_pipe = self.master.pipes[agent.grid_queue]
                     agent_pipe.send("remove")
@@ -174,11 +187,11 @@ class TimeOperator(Operators.TimeOperator):
                 self.master.add_to_grid_queue(agent)
     
         #3. send done signal
-    	self.master.comm.send(('done','time operations'),dest = self.master.other)
+    	self.master.broadcast(('done','time operations'))
                 
     def remove(self, agent):
         agent_name = agent.attributes["NAME"]
-        
+    
         #1. End current relationships
         relations = self.master.network.edges(agent)
         for r in relations:
@@ -192,9 +205,8 @@ class TimeOperator(Operators.TimeOperator):
             self.master.add_to_grid_queue(other)
             
         #2. Remove from grid queues and network
-        loc = agent.attributes["LOC"][0][0]
-        if self.master.primary and loc > 0.5:
-            self.master.comm.send(('remove',agent_name), dest = self.master.other)  # send to other community
+        if agent.partition is not self.master.rank:
+            self.master.comm.send(('remove',agent_name), dest = agent.partition)  # send to other community
         else:
             agent_pipe = self.master.pipes[agent.grid_queue]
             agent_pipe.send("remove")  # send remove irregardless
@@ -203,7 +215,12 @@ class TimeOperator(Operators.TimeOperator):
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
         
-        #3. Replace with new young agent
+        #3. Update migration variables
+        if self.master.migration:
+            agent.attributes["MIGRATION"].append((self.master.time, self.master.rank, 0))
+            self.master.comm.send(('remove',agent_name), dest = 0)
+        
+    def replace(self, agent):
         self.master.make_population(1)
         
 class InfectionOperator(Operators.InfectionOperator):
@@ -220,26 +237,29 @@ class InfectionOperator(Operators.InfectionOperator):
         relationship is serodiscordant, infect the uninfected partner with
         probablity this is relative to infectivity.
         """
-        if not self.master.primary:
+        if not self.master.is_primary:
             return
-        
+            
         #Go through edges and flip coin for infections
         now = self.master.time
         relationships = self.master.network.edges()
         for r in relationships:
             #print "now:",now,"|",r[0].time_of_infection, r[0].time_of_infection<now, r[1].time_of_infection, r[1].time_of_infection>now
-            if(r[0].time_of_infection < now and r[1].time_of_infection > now and random.random() < self.master.INFECTIVITY):
+            if (r[0].time_of_infection < now and r[1].time_of_infection > now) and random.random() < self.master.INFECTIVITY:
                 r[1].time_of_infection = now
                 continue
-            if(r[1].time_of_infection < now and r[0].time_of_infection > now and random.random() < self.master.INFECTIVITY):
+            if (r[1].time_of_infection < now and r[0].time_of_infection > now) and random.random() < self.master.INFECTIVITY:
                 r[0].time_of_infection = now
 
     def perform_initial_infections(self, initial_prevalence, seed_time):
         """
         Seeds the population with *initial_prevalence* at *seed_time*.
         """
+        if not self.master.is_primary:
+            return
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
+
         for i in range(infections):
-            agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]
+            agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
             agent.time_of_infection = seed_time * 52
 

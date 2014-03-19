@@ -1,7 +1,7 @@
 Community
 =======================
 
-.. automodule:: Community
+.. automodule:: __init__
    
-.. autoclass:: Community.Community
+.. autoclass:: __init__.Community
    :members: 

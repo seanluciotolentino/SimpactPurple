@@ -9,7 +9,9 @@ To download, grab the package from our github repository: https://github.com/sea
 
 	python setup.py install 
 
-from the command line.
+from the command line. If you don't have permissions to install software on the computer you're using, you can install it to your user folder::
+
+	python setup.py install --user
 
 Overview
 -----------------------
