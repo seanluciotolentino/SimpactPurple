@@ -1,14 +1,13 @@
 import numpy.random as random
 import numpy as np
-import Community
-#import Operators
+import simpactpurple
 import OperatorsDistributed
 import time as Time
 
-class CommunityDistributed(Community.Community):
+class CommunityDistributed(simpactpurple.Community):
 
     def __init__(self, comm, primary, others, migration = False):
-        Community.Community.__init__(self)
+        simpactpurple.Community.__init__(self)
         #Distributed parameters
         self.comm = comm
         self.rank = comm.Get_rank()
@@ -65,7 +64,7 @@ class CommunityDistributed(Community.Community):
         agents instead of making agents themselves.
         """
         if self.is_primary:
-            Community.Community.make_population(self, size)
+            simpactpurple.Community.make_population(self, size)
             if self.time < 0:
                 self.broadcast(('done','making population')) 
                 if self.migration:
@@ -161,7 +160,7 @@ class CommunityDistributed(Community.Community):
         Take a single time step (one week) in the simulation. 
         """
         #1. Proceede normally
-        Community.Community.step(self)
+        simpactpurple.Community.step(self)
             
         #2. Migration operations
         if not self.migration:

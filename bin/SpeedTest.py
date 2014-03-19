@@ -12,23 +12,24 @@ helium.
 
 import os
 import time
-import Community
+import simpactpurple
 
-population_ranges = range(1000,5001,1000)
-#population_ranges = range(100,501,100)
+#population_ranges = range(1000,5001,1000)
+population_ranges = range(100,501,100)
+#population_ranges = range(10000,30001,10000)
 
-print "multiple\tsingle"
+print "\tmultiple\tsingle"
 for pop in population_ranges:
     print pop,
     start = time.time()
-    num_rela = os.popen("mpiexec -n 2 -host v2,v3 python MainDistributed.py "\
+    num_rela = os.popen("mpiexec -n 2 -host v2,v3 python distributed/MainDistributed.py "\
             + str(pop)).read()
     elapsed_time = round(time.time() - start,2)
     print elapsed_time,
 
     #continue
     start = time.time()
-    s = Community.Community()
+    s = simpactpurple.Community()
     s.INITIAL_POPULATION = pop
     s.run()
     elapsed_time = round(time.time() - start,2)

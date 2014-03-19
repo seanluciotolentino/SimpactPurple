@@ -10,8 +10,8 @@ is the initial test script for proof of concept.
 """
 
 from mpi4py import MPI
-import CommunityDistributed
-import GraphsAndData
+import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
+import simpactpurple.GraphsAndData as GraphsAndData
 import sys
 
 #print "hello from", MPI.Get_processor_name(),"rank",MPI.COMM_WORLD.Get_rank()

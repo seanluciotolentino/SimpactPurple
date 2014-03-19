@@ -9,16 +9,16 @@ A script which runs a single community simulation.
 """
 
 from mpi4py import MPI
-import Community
+import simpactpurple
 import sys
-import GraphsAndData
+import simpactpurple.GraphsAndData as GraphsAndData
 
 print "hello from", MPI.Get_processor_name(),"rank",MPI.COMM_WORLD.Get_rank()
 name = MPI.Get_processor_name()
 
 #MPI variables
 if __name__ == '__main__':
-    c = Community.Community()
+    c = simpactpurple.Community()
     c.INITIAL_POPULATION = int(sys.argv[1])
     c.NUMBER_OF_YEARS = 30
     c.run()

@@ -10,10 +10,10 @@ is the initial test script for proof of concept.
 """
 
 from mpi4py import MPI
-import CommunityDistributed
-import MigrationOperator
+import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
+import simpactpurple.distributed.MigrationOperator
 import sys
-import GraphsAndData
+import simpactpurple.GraphsAndData as GraphsAndData
 
 print "hello from", MPI.Get_processor_name(),"rank",MPI.COMM_WORLD.Get_rank()
 
