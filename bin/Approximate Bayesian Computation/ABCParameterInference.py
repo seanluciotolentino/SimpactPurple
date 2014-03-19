@@ -11,8 +11,8 @@ Processing of the file (to generate graphs) is performed by another script,
 ABCOutputProcessing.
 
 """
-import Community
-import GraphsAndData
+import simpactpurple
+import simpactpurple.GraphsAndData as GraphsAndData
 import numpy as np
 import numpy.random as random
 from numpy.random import uniform as uni
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     for i in range(n):
         #1.1 Sample and set parameters from prior distribution
         print "---Sample", i,"---"
-        s = Community.Community()
+        s = simpactpurple.Community()
         # set constants
         s.INITIAL_POPULATION = 1000  # scale this up later?
         s.NUMBER_OF_YEARS = 15
