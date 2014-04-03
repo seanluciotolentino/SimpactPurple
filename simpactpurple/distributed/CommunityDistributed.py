@@ -14,11 +14,8 @@ class CommunityDistributed(simpactpurple.Community):
         self.primary = primary
         self.is_primary = self.rank == primary
         self.others = others
-        self.size = len(self.others) 
+        self.size = len(self.others) + 1
         self.migration = migration
-        #print "checking in: rank",comm.Get_rank(),"primary",primary, "others",others,"migration",self.migration
-        
-        #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
         
         #MODEL OPERATORS
@@ -34,6 +31,10 @@ class CommunityDistributed(simpactpurple.Community):
         self.BIN_SIZE = 5
         self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
         self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*10*random.exponential(5)  # scale*expo(shape)
+        #for controlling recruitment
+        self.RECRUIT_WARM_UP = 5
+        self.INITIAL_RECRUIT = 0.01
+        self.RECRUIT_RATE = 0.005
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -57,6 +58,47 @@ class CommunityDistributed(simpactpurple.Community):
         """        
         for other in self.others:
             self.comm.send(message, dest = other)
+            
+    def update_recruiting(self, rate):
+        if self.is_primary:
+            #calculate recruit numbers
+            nodes = self.size
+            recruit = np.ceil(self.INITIAL_POPULATION*rate)
+            per_node_float = recruit/nodes
+            per_node_int = int(recruit)/nodes
+            fraction = per_node_float - per_node_int
+            ceils = int(fraction*nodes)  # the number of nodes that get the floor
+            floors = int(nodes - ceils)  # the number of nodes that get the ceil
+            
+            #debug
+#            print "===update recruiting at",self.time,"==="
+#            print "nodes", nodes
+#            print "recruit",recruit
+#            print "per_node_float",per_node_float
+#            print "per_node_int",per_node_int
+#            print "fraction",fraction
+#            print "floors",floors
+#            print "ceils",ceils
+            
+            #send recruit number
+            self.recruit = int(np.floor(per_node_float))  # primary takes the last floor
+#            print "rank",self.rank,"changing recruit to",self.recruit,"at time",self.time                
+            
+            for other in self.others[:floors-1]:
+                self.comm.send(('recruit',int(np.floor(per_node_float))), dest = other)
+            for other in self.others[floors-1:]:
+                self.comm.send(('recruit',int(np.ceil(per_node_float))), dest = other)
+                
+            
+#            print "=====done updating at",self.time,"===="
+        else:
+            #listen for recruit number
+            msg, data = self.comm.recv(source = self.primary)
+#            if msg != 'recruit':
+#                raise Exception,"didn't receive correct message:"+msg+" data:"+str(data)
+#            else:
+#                print "rank",self.rank,"changing recruit to",data,"at time",self.time
+            self.recruit = data
     
     def make_population(self, size):
         """
@@ -119,17 +161,13 @@ class CommunityDistributed(simpactpurple.Community):
         accordingly.
         """
         #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
-        req = self.comm.irecv(dest = from_whom)  # data depends on msg
+        #req = self.comm.irecv(dest = from_whom)  # data depends on msg
+        msg, data = self.comm.recv(source = from_whom)  # data depends on msg
         while True:
-            #continually check that a message was received
-            flag, message = req.test()
-            if not flag: continue
-            msg, data = message
-    	    #print "  > listening on",self.rank,"| msg:",msg,"data:",data
+            #print "  > listening on",self.rank,"| msg:",msg,"data:",data
             if msg == 'done':
                 break
-            req = self.comm.irecv(dest = from_whom)  # listen for next message
-
+            
             #parse message and act            
             if msg == 'add_to_simulation':
                 agent = data  # data is agent object here
@@ -151,7 +189,8 @@ class CommunityDistributed(simpactpurple.Community):
             elif msg == 'push':
                 agent = data  # data is agent object here
                 self.main_queue.push(agent.grid_queue, agent)
-                    
+            
+            msg, data = self.comm.recv(source = from_whom)  # listen for next message
         #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
         #print
 

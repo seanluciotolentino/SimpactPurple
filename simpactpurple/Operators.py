@@ -3,6 +3,7 @@ Module for all of the default operators.
 """
 
 import Queue
+import numpy as np
 import numpy.random as random
 
 class RelationshipOperator():
@@ -29,9 +30,10 @@ class RelationshipOperator():
         self.update()
         
         #1. Recruit
-        for i in range(int(self.master.MAIN_QUEUE_MAX * len(self.master.agents))):  # *** do this better
+        for i in range(self.master.recruit):  # *** do this better
             self.recruit()
-        
+#        print "suitors:",[(p,a.attributes["NAME"]) for p,a in self.master.main_queue.heap]
+#        print 
         #2. Match
         while not self.master.main_queue.empty():
             self.match()
@@ -89,11 +91,30 @@ class RelationshipOperator():
             r = random.random()
             decision = int(r < hazard)
             pq.put((-decision, match))
-        
+            
         #3. Verify acceptance and form the relationship
         top = pq.get()
         match = top[1]
         accept = top[0]
+        
+        #DEBUG
+        #print "suitor",suitor,"GQ",suitor.grid_queue,"match",match,"GQ",match.grid_queue,"accept",accept
+        #print "GQ\t| G Ag Sz|| doubles?\t|| agents"
+        #print "------------------------------------------"
+        #for gq in self.master.grid_queues.values():
+        #    pipe = self.master.pipes[gq.my_index]
+        #    pipe.send("queue")
+        #    agents = pipe.recv()
+        #    agents = ["("+str(p)+" "+str(a.attributes["NAME"])+")" for p,a in agents.heap if p<np.inf]
+        #    
+        #    line = str(gq.my_index) + "\t|" + str(gq.my_sex) + " " + \
+        #        str(gq.my_age) + " " + str(len(agents)) + " || " + \
+        #        str(any([a for a in agents if agents.count(a) > 1])) + \
+        #        "\t|| " + " ".join(agents)
+        #    print line
+        #print
+        #print
+        
         if accept:
             self.form_relationship(suitor, match) 
             if self.master.network.degree(suitor) >= suitor.dnp:
@@ -108,8 +129,8 @@ class RelationshipOperator():
         Forms a relationship between agent1 and agent2.
         """
         d = self.duration(agent1, agent2)
-        agent1.last_match = self.master.time
-        agent2.last_match = self.master.time
+        #agent1.last_match = self.master.time
+        #agent2.last_match = self.master.time
         self.master.relationships.append([agent1, agent2, self.master.time, self.master.time + d])
         self.master.network.add_edge(agent1, agent2, {"duration": d})
 

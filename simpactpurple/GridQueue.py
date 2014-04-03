@@ -74,13 +74,11 @@ class GridQueue():
         
         agent = self.my_agents.pop()[1]
         if agent.last_match == self.time:
-            self.my_agents.push(self.time,agent)
-            #print "  GQ",self.my_index,"already returned all agents"
+            self.my_agents.push(agent.last_match,agent)
             return  None  # already returned on this round
         else:
             agent.last_match = self.time
             self.my_agents.push(agent.last_match,agent) 
-            #print "  GQ",self.my_index,"returning an agent"
             return agent.attributes["NAME"]
 
     def enquire(self, suitor):
@@ -104,30 +102,43 @@ class GridQueue():
             self.my_agents.clear()
             for old_hazard, agent in agents:  # old_hazard is not needed
                 hazard = self.hazard(agent, suitor, age_difference = ad, mean_age = ma)
-                decision = int(random.random() < hazard)
-                self.my_agents.push(-decision,agent)
+                if random.random() < hazard:                    
+                    self.my_agents.push(agent.last_match,agent)
+                else:
+                    self.my_agents.push(np.inf, agent)
+                
         self.previous = suitor
 
-        #Return an accepting agent
-        top = self.my_agents.top()
-        accept = top[0]
-        match = top[1]
+        #Update last_match and return an accepting agent
+        accept, match = self.my_agents.pop()
+        
+        if accept >= np.inf:
+            self.my_agents.push(np.inf, match)  # push back in
+            return None
+        
+        #suitor check
         match_name = match.attributes["NAME"]
         suitor_name = suitor.attributes["NAME"]
         if match_name == suitor_name:
             if self.my_agents.length() <= 1:
+                self.my_agents.push(match.last_match, match)
                 return None
             else:
                 #try to pop next in the queue
-                suitor_accept, suitor = self.my_agents.pop()
-                accept, match = self.my_agents.top()
-                match_name = match.attributes["NAME"]
-                self.my_agents.push(suitor_accept, suitor)
+                new_accept, new_match = self.my_agents.pop()
+                self.my_agents.push(accept, match)
+                accept, match = new_accept, new_match
+                match_name = match.attributes["NAME"]        
         
-        if accept == 0:  
-            return None
-        else:
-            return match_name
+        #sanity check
+#        if match.last_match == self.time:
+#            print "**match apology**  ",
+#            print "GQ",self.my_index, "suitor",suitor,"match:",match,"queue:",[(p,a.attributes["NAME"]) for p,a in self.my_agents.heap]
+
+        #finally, return match
+        match.last_match = self.time
+        self.my_agents.push(match.last_match, match)  # move from top position        
+        return match_name
             
     def add(self, agent):
         """
@@ -140,10 +151,7 @@ class GridQueue():
 
         #add with the appropriate priority
         self.names[agent_name] = agent
-        if self.previous is not None:  # adding to "matching" queue
-            self.my_agents.push(-1, agent)        
-        else:  # adding to a "time since last" queue
-            self.my_agents.push(agent.last_match, agent)
+        self.my_agents.push(agent.last_match, agent)
             
     def remove(self, agent_name):
         """

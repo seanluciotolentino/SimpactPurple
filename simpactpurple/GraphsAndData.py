@@ -3,7 +3,6 @@ A module for creating descriptive graphs and extracting relavent data
 from a Simpact object.
 """
 
-import math
 import numpy as np
 import numpy.random as random
 import networkx as nx
@@ -32,7 +31,7 @@ def age_mixing_data(s, filename = None):
             male = r[0]
 
         
-        time_since_relationship = s.time - r[3]
+        time_since_relationship = s.time - r[2]
         males.append(((s.age(male)*52.0) - time_since_relationship)/52.0)
         females.append(((s.age(female)*52.0) - time_since_relationship)/52.0)
 
@@ -82,12 +81,12 @@ def age_mixing_heat_graph(s, grid = 10, filename = None):
             female = r[1]
             male = r[0]
 
-        time_since_relationship = s.time - r[3]
+        time_since_relationship = s.time - r[2]
 
         male_age_at_formation = (((s.age(male) * 52.0) - time_since_relationship) / 52.0)
-        male_index = math.floor(((male_age_at_formation - minimum)/(maximum - minimum)) * grid)
+        male_index = np.floor(((male_age_at_formation - minimum)/(maximum - minimum)) * grid)
         female_age_at_formation = (((s.age(female) * 52.0) - time_since_relationship) / 52.0)
-        female_index = math.floor(((female_age_at_formation-minimum) / (maximum - minimum)) * grid)
+        female_index = np.floor(((female_age_at_formation-minimum) / (maximum - minimum)) * grid)
         boxes[female_index][male_index] += 1.0
 
     boxes_max = max([max(row) for row in boxes])
@@ -163,7 +162,7 @@ def formed_relations_data(s):
     """
     Returns a list of the number of relationships at every timestep.
     """
-    num_weeks = min(s.time, int(math.ceil(52 * s.NUMBER_OF_YEARS)))
+    num_weeks = min(s.time, int(np.ceil(52 * s.NUMBER_OF_YEARS)))
     relations = [0] * num_weeks
     for r in s.relationships:
         start = r[2]
@@ -179,7 +178,7 @@ def formed_relations_graph(s, filename = None):
     is provided (string), the graph is saved to the file instead of displayed
     on the screen.
     """
-    num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
     relations = formed_relations_data(s)
     
     plt.ioff()
@@ -202,7 +201,7 @@ def relations_graph(s, filename = None):
     """
     fig = plt.figure()
     
-    #num_weeks = min(s.time, int(math.ceil(52 * s.NUMBER_OF_YEARS)))
+    #num_weeks = min(s.time, int(np.ceil(52 * s.NUMBER_OF_YEARS)))
     #relations = [0] * num_weeks
     for i, r in enumerate(s.relationships):
         start = r[2]
@@ -217,7 +216,7 @@ def infection_data(s):
     """
     Returns a list with total number of infections at every timestep. 
     """
-    num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
@@ -232,7 +231,7 @@ def population_data(s):
     """
     Returns a list with total number of individuals at every timestep.
     """
-    num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
@@ -257,7 +256,7 @@ def prevalence_graph(s, filename = None):
     (string), the graph is saved to the file instead of displayed on the 
     screen.
     """
-    num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
     prev = prevalence_data(s)
     
     plt.ioff()
@@ -283,7 +282,7 @@ def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
     use.
     """
     data = []
-    now = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS))) #determine if we are at the end of the simulation or in the middle
+    now = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS))) #determine if we are at the end of the simulation or in the middle
     for t in range(0,now,time_granularity):
         demographic = [0]*num_boxes; #create an list with the number of slots we want
 
@@ -296,7 +295,7 @@ def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
             if agent.attributes["TIME_ADDED"]>= t or agent.attributes["TIME_REMOVED"] <= t:
                 continue  # skip if the agent wasn't born yet or has been removed
                 
-            if hasattr(s,'migration'):
+            if hasattr(s,'migration') and s.migration:
                 #find nearest migration timestamp
                 before_time = -np.inf
                 before = None           
@@ -313,7 +312,7 @@ def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
                     
 
             age_at_t /= 52  # convert back to years
-            level = min(num_boxes-1,int(math.floor( age_at_t / box_size)));
+            level = min(num_boxes-1,int(np.floor( age_at_t / box_size)));
             demographic[level] += 1;  # ...and add them to their delineations level
 
         #add the delineations to the data
@@ -328,7 +327,7 @@ def demographics_graph(s,time_granularity = 4,num_boxes = 7,box_size = 10, filen
     use. If *filename* is provided (string), the graph is saved to the 
     file instead of displayed on the screen.
     """
-    num_weeks = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
     demographics = demographics_data(s,time_granularity,num_boxes,box_size)
     colors = ['b','g','r','c','m','y']
     bottom = [0]*len(demographics)
@@ -594,7 +593,7 @@ def number_of_partners_data(s, year = None):
     if year is not None:  # allow user to specify a year         
         s.time = year*52.0
         
-    now = min(s.time,int(math.ceil(52*s.NUMBER_OF_YEARS))) 
+    now = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS))) 
     relationships = {}
     for agent in s.agents.values():  # for each agent...
         if agent.attributes["TIME_REMOVED"] < np.inf:

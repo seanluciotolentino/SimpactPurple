@@ -13,18 +13,22 @@ approximate bayesian computation -- validation. when the model is too complicate
 
 import simpactpurple
 import simpactpurple.GraphsAndData as gad
+import numpy as np
+import numpy.random as random
 
 if __name__ == '__main__':
     s = simpactpurple.Community()
     s.INITIAL_POPULATION = 1000
-    s.NUMBER_OF_YEARS = 5
-    s.run(timing = True)
+    s.NUMBER_OF_YEARS = 30
+    #s.DURATIONS = lambda a1, a2: (np.mean((s.age(a1),s.age(a2)))/5)*random.exponential(5)
+    s.DURATIONS = lambda a1, a2: 4*random.exponential(5)    
+    s.run()
 
     #GRAPH VERIFICATION
-#    gad.prevalence_graph(s)
+    gad.prevalence_graph(s)
     gad.formed_relations_graph(s)
-#    gad.demographics_graph(s)
-#    gad.age_mixing_graph(s)
+    gad.demographics_graph(s)
+    gad.age_mixing_graph(s)
 #    gad.age_mixing_heat_graph(s)
 #    gad.sexual_network_graph(s)
 

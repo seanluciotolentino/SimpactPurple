@@ -6,6 +6,7 @@ import Queue
 import numpy.random as random
 import numpy as np
 import simpactpurple.Operators as Operators
+import time
 
 class RelationshipOperator(Operators.RelationshipOperator):
     """
@@ -24,21 +25,32 @@ class RelationshipOperator(Operators.RelationshipOperator):
         else:
             # recv agents and add to right grid queue
             self.master.listen('relationship updates', self.master.primary)
-        self.already_added = []  # reset relationships formed this round
-
+        
         #1.1 Recruit
-        for i in range(int(0.5 * self.master.MAIN_QUEUE_MAX * len(self.master.agents))):  # *** do this better
+        for i in range(self.master.recruit):  # *** do this better
             self.recruit()
         self.master.broadcast(('done','recruiting'))
         #1.2 Swap
         for other in self.master.others:
             self.master.listen('new recruits', from_whom = other)
+        
+        ##DEBUG -- figure out how many relationships are rejected each round
+#        if self.master.is_primary:
+#            self.rejected = 0.0
+#            relations_before = len(self.master.network.edges())
+##            self.master.debug()
+#            print "vvv == time", self.master.time,"========="
+#	    print "ended relationships:", self.master.relations - relations_before
+#	    self.master.ended_relationships.append(self.master.relations - relations_before)
+#        print "rank",self.master.rank,"time",self.master.time,"recruited", len(self.master.main_queue),"of",self.master.recruit
+            
 
         #2.1 Match
         while(not self.master.main_queue.empty()):
             self.match()
         #2.2 Sync
         if self.master.is_primary:
+#            print "---------adding other relationships now----------"
             #add relationships from other commmunity
             for other in self.master.others:
                 self.master.listen('non-primary relationship', from_whom = other)
@@ -47,6 +59,13 @@ class RelationshipOperator(Operators.RelationshipOperator):
             #finish sending relationships to other community
             self.master.comm.send(('done','sending matches'), dest = self.master.primary)
             self.master.listen('matched agent removals', self.master.primary)
+            
+        ##DEBUG -- After all the matches do some calcs
+#        if self.master.is_primary:
+#	    self.master.relations = len(self.master.network.edges())
+#            total_relations = np.max((1,self.master.relations - relations_before))
+#            print "^^^ == time",self.master.time, "relationships made:",total_relations, "rejected", self.rejected, "rejection rate:",self.rejected/(self.rejected+total_relations)
+#            print 
     
     def recruit(self):
         """
@@ -79,6 +98,11 @@ class RelationshipOperator(Operators.RelationshipOperator):
         """
         #1. get next suitor and request matches for him/her from grid queues
         suitor = self.master.main_queue.pop()[1]
+        
+        #1.1 Return if matched
+        if self.master.is_primary and self.master.network.degree(\
+            self.master.agents[suitor.attributes["NAME"]]) >= suitor.dnp:
+            return
 	
         #1.2 Parallel, send enquiries via pipe
         for pipe in self.master.pipes.values():
@@ -99,10 +123,30 @@ class RelationshipOperator(Operators.RelationshipOperator):
             pq.put((-decision, match))
         
         #3. Verify acceptance and form the relationship
-        top = pq.get()
-        match = top[1]
-        accept = top[0]
+        accept, match = pq.get()
+        match_name = match.attributes["NAME"]
+        
+        #3.1 Get next until it's an agent we haven't seen.
+#        replace = False  # DEBUG
+#        original_match = match_name
+#        original_accept = accept
+#        while match_name in self.match_list and not pq.empty():  # might need more stringent checks
+#            replace = True
+##            print "    *rank",self.master.rank,"rejecting",match_name,"replace with",
+#            accept, match = pq.get()
+#            match_name = match.attributes["NAME"]
+##            print match_name
+#        if self.master.is_primary:
+#            print "=> suitor:",suitor.attributes["NAME"],"GQ",suitor.grid_queue,
+#            print "match:",match_name,"GQ",match.grid_queue,"accept:",accept
+
+#        if self.master.is_primary and replace:
+#            print "       *replaced",original_match,"with",match_name
+#        if self.master.is_primary and match_name in self.match_list and pq.empty():
+#            print "       *failed  to replace",match_name,"(original=",original_match+")"
+
         if accept:
+#            self.match_list.append(match_name)
             if self.master.is_primary:
                 suitor = self.master.agents[suitor.attributes["NAME"]]  # grab the appropriate agent
                 match = self.master.agents[match.attributes["NAME"]]
@@ -113,13 +157,16 @@ class RelationshipOperator(Operators.RelationshipOperator):
                 self.master.comm.send(('add_relationship',(suitor,match)), dest = self.master.primary)
 
     def form_relationship(self, agent1, agent2):
-        #check agents haven't already formed a relationship this round
+        # Reject based on DNP rule
+#        print "  > relationship", 
+#        print agent1, "(deg-"+str(np.ceil(agent1.dnp))+" gq-"+str(agent1.grid_queue)+") -",
+#        print agent2, "(deg-"+str(np.ceil(agent2.dnp))+" gq-"+str(agent2.grid_queue)+")",
         for agent in [agent1, agent2]:
-            agent_name = agent.attributes["NAME"]
-            if agent_name in self.already_added:
-                return
-        self.already_added+=[agent1.attributes["NAME"], agent2.attributes["NAME"]]
-        
+            if self.master.network.degree(agent) >= agent.dnp:
+#                self.rejected+=1.0  # FOR DEBUGGING 
+#                print "  --> REJECTED: ", agent, "DEGREE", self.master.network.degree(agent)
+                return        
+#        print "  --> accepted"
         #actually form the relationship        
         Operators.RelationshipOperator.form_relationship(self, agent1, agent2)
         

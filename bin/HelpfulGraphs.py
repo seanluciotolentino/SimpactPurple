@@ -15,19 +15,20 @@ import matplotlib.pyplot as plt
 #%% Different Probability Multipliers
 #h_ij = exp ( probability_multiplier * abs( age_difference(i,j) - preferred_age_difference ) )
 plt.figure()
-age_difference = np.arange(-20,21,0.5)
+age_difference = np.arange(-20,21,0.1)
+approx_age_difference = (np.floor(age_difference/5))*5
 preferred_age_difference = np.repeat(0, len(age_difference))
 probability_multipliers = [-0.01, -0.1, -0.5]
 for probability_multiplier in probability_multipliers:
-    hazard = np.exp(probability_multiplier*np.abs(age_difference - preferred_age_difference))
+    hazard = np.exp(probability_multiplier*np.abs(approx_age_difference - preferred_age_difference))
     plt.plot(age_difference, hazard)
 plt.legend([str(pm) for pm in probability_multipliers], bbox_to_anchor = (1, 0.8))
 plt.grid()
 plt.yticks(np.arange(0,1.1,0.1))
-plt.ylabel('Hazard of Age Difference')
+plt.ylabel('Probability of Age Difference')
 plt.xlabel('Age Difference')
 plt.xlim((-20,20))
-plt.title('Hazards of Age Difference for Various Probability Multipliers')
+plt.title('Probabilities of Age Difference for Various Probability Multipliers')
 
 #%% Hazards for different Age Combinations
 #some graph parameters
