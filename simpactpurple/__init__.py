@@ -48,8 +48,11 @@ class Community():
         self.MIN_AGE = 15
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
-        self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
         self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*10*random.exponential(5)
+        #for controlling recruitment
+        self.RECRUIT_WARM_UP = 5
+        self.RECRUIT_INITIAL = 0.01
+        self.RECRUIT_RATE = 0.005
         
         #infection operator
         self.INFECTIVITY = 0.01
@@ -75,7 +78,13 @@ class Community():
         self.start()  # initialize data structures
         #print "running..."
         #mainloop
-        for t in range(int(self.NUMBER_OF_YEARS*52)):
+        self.update_recruiting(self.RECRUIT_INITIAL)
+        for t in range(self.RECRUIT_WARM_UP):
+            self.time = t
+            self.step()
+        
+        self.update_recruiting(self.RECRUIT_RATE)
+        for t in range(self.RECRUIT_WARM_UP, int(self.NUMBER_OF_YEARS*52)):
             #print "---------time",t,"---------------"
             self.time = t
             self.step()
@@ -144,8 +153,7 @@ class Community():
 
         After an agent receives a name, age, sex, and DNP, he or she is added
         to the network graph and added to a grid queue.
-        """ 
-        
+        """        
         for i in range(size):
             #make agent and add some attributes
             a = Agent()
@@ -180,19 +188,42 @@ class Community():
         
         self.pipes[agent.grid_queue].send("add")
         self.pipes[agent.grid_queue].send(agent)
+    
+    def update_recruiting(self, rate):
+        """
+        Function called after initial warm up period -- updates the value for
+        self.recruit. In a seperate function to accomadate distributed version.
+        """
+        self.recruit = int(np.ceil(self.INITIAL_POPULATION*rate))
 
     def step(self):
         """
         Take a single time step (one week) in the simulation. 
         """ 
+#        print "=========time",self.time,"============="
         #1. Time progresses
+#        start = Time.time()
         self.time_operator.step()        
+#        print "time operator:\t",Time.time()-start
         
         #2. Form and dissolve relationships
+#        start = Time.time()
         self.relationship_operator.step()
+#        print "rela operator:\t",Time.time()-start
+#        print "  > num rela:",len(self.network.edges())
+#        print "  > recruit:", self.recruit
+        #num_gq = 0
+        #for gq in self.grid_queues.values():
+        #    pipe = self.pipes[gq.my_index]
+        #    pipe.send("queue")
+        #    agents = pipe.recv()
+        #    num_gq+=len(agents.heap)
+        #print "    agents in gqs:",num_gq
 
         #3. HIV transmission
+#        start = Time.time()
         self.infection_operator.step()
+#        print "infe operator:\t",Time.time()-start
         
     def cleanup(self):
         """

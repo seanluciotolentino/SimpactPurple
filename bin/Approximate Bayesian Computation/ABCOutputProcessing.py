@@ -45,6 +45,11 @@ def make_multiple_partners_figure(data, lowerbound, upperbound, rows, title):
         plt.subplot(3,2,index+1)    
         #simulation distribution
         plt.hist(accepted[:,rows[index]], normed=True, bins = range(0,100,2), color = col)
+        #simulation values
+        value = np.mean(accepted[:,rows[index]])
+        std = 2*np.std(accepted[:,rows[index]])
+        plt.errorbar((value,), (red_marker_location-0.02), xerr=((std,),(std,)),
+                     color=col, fmt='o', linewidth=2, capsize=5, mec = col)
         #data values
         value = data[index]
         lb = lowerbound[index]
@@ -75,7 +80,12 @@ def make_intergenerational_figure(data, lowerbound, upperbound, rows, title):
         plt.subplot(2,2,index+1)    
         #simulation distribution
         plt.hist(accepted[:,rows[index]], normed=True, bins = range(0,100,5), color = col)
-        #data values
+        #simulation values
+        value = np.mean(accepted[:,rows[index]])
+        std = 2*np.std(accepted[:,rows[index]])
+        plt.errorbar((value,), (red_marker_location-0.02), xerr=((std,),(std,)),
+                     color=col, fmt='o', linewidth=2, capsize=5, mec = col)
+        #survey values
         value = data[index]
         lb = lowerbound[index]
         ub = upperbound[index]
@@ -102,12 +112,12 @@ np.set_printoptions(precision=2, suppress=True)
 threshold = 250
 red_marker_location = 0.15  # for showing survey data
 ylimit = 0.20  # upper y-lim for graphs
-col = 'b'  # color of bars
+col = 'g'  # color of bars
 save = True  # save to file?
 
 data = load_data()
-#accepted = data[data[:,-1]<=threshold,:]
-accepted = data[np.random.random((len(data),1))[:,0]<=0.02,:]
+accepted = data[data[:,-1]<=threshold,:]
+#accepted = data[np.random.random((len(data),1))[:,0]<=0.02,:]
 
 #%% Posterior Distributions
 parameters = ["Probability Multiplier", "Preferred Age Difference",
