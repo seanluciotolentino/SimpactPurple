@@ -36,6 +36,7 @@ class Community():
     def __init__(self):
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
+        self.NUM_CPUS
         
         #MODEL OPERATORS
         #hazard
@@ -120,6 +121,7 @@ class Community():
         self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
     
     def make_grid_queues(self):
+        semaphore = multiprocessing.Semaphore(self.NUM_CPUS)
         for age in range(self.MIN_AGE, self.MAX_AGE, self.BIN_SIZE):
             bottom = age
             top = age+self.BIN_SIZE
@@ -133,7 +135,7 @@ class Community():
                                         
                 #start a new process for it
                 pipe_top, pipe_bottom = multiprocessing.Pipe()
-                p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))#, semaphore))
+                p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom, semaphore))
                 p.start()
                 self.pipes[gq.my_index] = pipe_top
         
