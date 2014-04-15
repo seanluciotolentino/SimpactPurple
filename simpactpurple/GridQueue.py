@@ -30,6 +30,7 @@ def listen(gq, pipe, semaphore):
         elif action == "time":
             gq.time = pipe.recv()
         elif action == "terminate":
+            semaphore.release()
             break
         else:
             raise ValueError, "GridQueue received unknown action:" + action
