@@ -36,7 +36,7 @@ class Community():
     def __init__(self):
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
-        self.NUM_CPUS
+        self.NUM_CPUS = 20
         
         #MODEL OPERATORS
         #hazard
