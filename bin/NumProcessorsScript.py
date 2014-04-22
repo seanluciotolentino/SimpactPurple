@@ -14,13 +14,14 @@ import simpactpurple.GraphsAndData as gad
 import time
 
 if __name__ == '__main__':
-    num_processors = range(1,12)
-    for bin_size in [1, 2, 5, 10, 25]:
+    num_processors = range(1,6)
+    for bin_size in [1, 5, 10]:
         print (50.0/bin_size)*2,"grid queues"
         for n in num_processors:
             start = time.time()
             s = simpactpurple.Community()
             s.INITIAL_POPULATION = 1000
+            s.probability_multiplier = -0.01
             s.NUMBER_OF_YEARS = 30
             s.NUM_CPUS = n
             s.BIN_SIZE = bin_size

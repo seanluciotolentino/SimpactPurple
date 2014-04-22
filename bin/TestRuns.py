@@ -16,15 +16,17 @@ import simpactpurple.GraphsAndData as gad
 
 if __name__ == '__main__':
     s = simpactpurple.Community()
-    s.INITIAL_POPULATION = 1000
-    s.NUMBER_OF_YEARS = 5
+    s.INITIAL_POPULATION = 500
+    s.NUMBER_OF_YEARS = 30
+    s.RECRUIT_INITIAL = 0.05
+    s.WARM_UP = 10
     s.run(timing = True)
 
     #GRAPH VERIFICATION
-#    gad.prevalence_graph(s)
+    gad.prevalence_graph(s)
     gad.formed_relations_graph(s)
-#    gad.demographics_graph(s)
-#    gad.age_mixing_graph(s)
+    gad.demographics_graph(s)
+    gad.age_mixing_graph(s)
 #    gad.age_mixing_heat_graph(s)
 #    gad.sexual_network_graph(s)
 
