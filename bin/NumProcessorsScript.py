@@ -21,11 +21,11 @@ if __name__ == '__main__':
             start = time.time()
             s = simpactpurple.Community()
             s.INITIAL_POPULATION = 1000
-            s.probability_multiplier = -0.01
+            s.probability_multiplier = -0.2
             s.NUMBER_OF_YEARS = 30
             s.NUM_CPUS = n
             s.BIN_SIZE = bin_size
             s.run()
             print n, time.time()-start
-        gad.age_mixing_graph(s,filename='age-mixing{0}.png'.format(bin_size))
+        #gad.age_mixing_graph(s,filename='age-mixing{0}.png'.format(bin_size))
 
