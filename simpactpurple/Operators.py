@@ -5,6 +5,7 @@ Module for all of the default operators.
 import Queue
 import numpy as np
 import numpy.random as random
+import time as Time
 
 class RelationshipOperator():
     """
@@ -27,16 +28,22 @@ class RelationshipOperator():
         Take a single time step in the simulation. 
         """
         #0. Dissolve relationships
+        start = Time.time()
         self.update()
+        print "  update\t\t",Time.time()-start
         
         #1. Recruit
+        start = Time.time()
         for i in range(self.master.recruit):  # *** do this better
             self.recruit()
+        print "  recruit\t\t",Time.time()-start
 #        print "suitors:",[(p,a.attributes["NAME"]) for p,a in self.master.main_queue.heap]
 #        print 
         #2. Match
+        start = Time.time()
         while not self.master.main_queue.empty():
             self.match()
+        print "  match\t\t",Time.time()-start
 
     def update(self):
         """
@@ -67,17 +74,21 @@ class RelationshipOperator():
         """
         Pop a suitor off the main queue and try to match him or her. 
         """
+        start = Time.time()
         #1. get next suitor and request matches for him/her from grid queues
         suitor = self.master.main_queue.pop()[1]
         #1.1 Return if matched
         if self.master.network.degree(suitor) >= suitor.dnp:
             return
         #1.6 in parallel, send enquiries via pipe
+            
+        start = Time.time()
         for pipe in self.master.pipes.values():
             pipe.send("enquire")
             pipe.send(suitor)
         names = [pipe.recv() for pipe in self.master.pipes.values()]        
         matches = [self.master.agents[n] for n in names if n is not None]
+        print "    *parallel\t\t",Time.time()-start    
 
         #2. Suitor flips coins with potential matches
         if not matches:  # no matches
@@ -96,24 +107,6 @@ class RelationshipOperator():
         top = pq.get()
         match = top[1]
         accept = top[0]
-        
-        #DEBUG
-        #print "suitor",suitor,"GQ",suitor.grid_queue,"match",match,"GQ",match.grid_queue,"accept",accept
-        #print "GQ\t| G Ag Sz|| doubles?\t|| agents"
-        #print "------------------------------------------"
-        #for gq in self.master.grid_queues.values():
-        #    pipe = self.master.pipes[gq.my_index]
-        #    pipe.send("queue")
-        #    agents = pipe.recv()
-        #    agents = ["("+str(p)+" "+str(a.attributes["NAME"])+")" for p,a in agents.heap if p<np.inf]
-        #    
-        #    line = str(gq.my_index) + "\t|" + str(gq.my_sex) + " " + \
-        #        str(gq.my_age) + " " + str(len(agents)) + " || " + \
-        #        str(any([a for a in agents if agents.count(a) > 1])) + \
-        #        "\t|| " + " ".join(agents)
-        #    print line
-        #print
-        #print
         
         if accept:
             self.form_relationship(suitor, match) 

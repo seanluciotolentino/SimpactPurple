@@ -49,7 +49,7 @@ class Community():
         self.MIN_AGE = 15
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
-        self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*10*random.exponential(5)
+        self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*random.exponential(5)
         #for controlling recruitment
         self.RECRUIT_WARM_UP = 5
         self.RECRUIT_INITIAL = 0.01
@@ -89,12 +89,21 @@ class Community():
             #print "---------time",t,"---------------"
             self.time = t
             self.step()
+            
+        #BEFORE CLEAN UP PRINT AGENTS IN GQ
+        num_gq = 0
+        for gq in self.grid_queues.values():
+            pipe = self.pipes[gq.my_index]
+            pipe.send("queue")
+            agents = pipe.recv()
+            num_gq+=len(agents.heap)
+        print "FINAL agents in gqs:",num_gq
         
         self.cleanup()  # send terminate signal
 
         #print timing if desired:
         end = Time.time()
-        if timing: print "simulation took",end-start,"seconds"
+        if timing: print "simulation took",round(end-start,2),"seconds"
         
     def start(self):
         """
@@ -205,30 +214,30 @@ class Community():
         """
         Take a single time step (one week) in the simulation. 
         """ 
-#        print "=========time",self.time,"============="
+        print "=========time",self.time,"============="
         #1. Time progresses
-#        start = Time.time()
+        start = Time.time()
         self.time_operator.step()        
-#        print "time operator:\t",Time.time()-start
+        print "time operator:\t",Time.time()-start
         
         #2. Form and dissolve relationships
-#        start = Time.time()
+        start = Time.time()
         self.relationship_operator.step()
-#        print "rela operator:\t",Time.time()-start
+        print "rela operator:\t",Time.time()-start
 #        print "  > num rela:",len(self.network.edges())
 #        print "  > recruit:", self.recruit
-        #num_gq = 0
-        #for gq in self.grid_queues.values():
-        #    pipe = self.pipes[gq.my_index]
-        #    pipe.send("queue")
-        #    agents = pipe.recv()
-        #    num_gq+=len(agents.heap)
-        #print "    agents in gqs:",num_gq
+#        num_gq = 0
+#        for gq in self.grid_queues.values():
+#            pipe = self.pipes[gq.my_index]
+#            pipe.send("queue")
+#            agents = pipe.recv()
+#            num_gq+=len(agents.heap)
+#        print "    agents in gqs:",num_gq
 
         #3. HIV transmission
-#        start = Time.time()
+        start = Time.time()
         self.infection_operator.step()
-#        print "infe operator:\t",Time.time()-start
+        print "infe operator:\t",Time.time()-start
         
     def cleanup(self):
         """
