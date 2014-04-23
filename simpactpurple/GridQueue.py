@@ -6,15 +6,16 @@ import PriorityQueue  # lucio's implementation
 import numpy as np
 import sys
 
-def listen(gq, pipe, semaphore):
+def listen(gq, pipe, lock):
     """
     Listens for an action from *pipe* to perform on *gq*. *semaphore* object
     passed by relationship operator which creates it -- allows simulation to
     use less than all the cores of the machine. 
     """
+    #print "gq",gq.my_index,"started with lock",hash(lock)
     while True:
         action = pipe.recv()
-        semaphore.acquire()
+        lock.acquire()
         if action == "recruit":
             pipe.send(gq.recruit())
         elif action == "enquire":
@@ -30,11 +31,11 @@ def listen(gq, pipe, semaphore):
         elif action == "time":
             gq.time = pipe.recv()
         elif action == "terminate":
-            semaphore.release()
+            lock.release()
             break
         else:
             raise ValueError, "GridQueue received unknown action:" + action
-        semaphore.release()
+        lock.release()
 
 
 class GridQueue():
