@@ -18,19 +18,14 @@ if __name__ == '__main__':
     s = simpactpurple.Community()
     s.INITIAL_POPULATION = 1000
     s.probability_multiplier = -0.2
-    s.NUMBER_OF_YEARS = 1
-    s.NUM_CPUS = 4
-    s.BIN_SIZE = 5
-    s.RECRUIT_WARM_UP = 20
-    s.RECRUIT_INITIAL = 0.01
-    s.RECRUIT_RATE = 0.002
+    s.NUMBER_OF_YEARS = 30
     s.run(timing = True)
 
     #GRAPH VERIFICATION
-#    gad.prevalence_graph(s)
+    gad.prevalence_graph(s)
     gad.formed_relations_graph(s)
-#    gad.demographics_graph(s)
-#    gad.age_mixing_graph(s)
+    gad.demographics_graph(s)
+    gad.age_mixing_graph(s)
 #    gad.age_mixing_heat_graph(s)
 #    gad.sexual_network_graph(s)
 

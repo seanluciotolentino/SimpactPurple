@@ -13,7 +13,7 @@ if os.popen("echo $DISPLAY").read().strip() == '':  # display not set
 import matplotlib.pyplot as plt
 
 
-def age_mixing_data(s, filename = None):
+def age_mixing_data(s):
     """
     Generates a scatter plot of male and female ages for each relationship
     formed. If *filename* is provided (string), the graph is saved to the 
@@ -231,7 +231,7 @@ def population_data(s):
     """
     Returns a list with total number of individuals at every timestep.
     """
-    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = min(s.time,int(np.floor(52*s.NUMBER_OF_YEARS)))
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
@@ -256,13 +256,12 @@ def prevalence_graph(s, filename = None):
     (string), the graph is saved to the file instead of displayed on the 
     screen.
     """
-    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = min(s.time,int(np.floor(52*s.NUMBER_OF_YEARS)))
     prev = prevalence_data(s)
     
     plt.ioff()
     fig = plt.figure()
     plt.plot(np.arange(0,num_weeks)/52.0,prev)
-    plt.ylim(0,1)
     plt.xlabel('Time (Years)')
     plt.ylabel('Prevalence (%)')
     plt.title('Prevalence')

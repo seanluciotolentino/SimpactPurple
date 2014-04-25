@@ -89,15 +89,6 @@ class Community():
             #print "---------time",t,"---------------"
             self.time = t
             self.step()
-            
-        #BEFORE CLEAN UP PRINT AGENTS IN GQ
-        num_gq = 0
-        for gq in self.grid_queues.values():
-            pipe = self.pipes[gq.my_index]
-            pipe.send("queue")
-            agents = pipe.recv()
-            num_gq+=len(agents.heap)
-        print "FINAL agents in gqs:",num_gq
         
         self.cleanup()  # send terminate signal
 
@@ -130,9 +121,6 @@ class Community():
         self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
     
     def make_grid_queues(self):
-        #semaphore = multiprocessing.Semaphore(self.NUM_CPUS)
-        locks = [multiprocessing.Lock() for i in range(self.NUM_CPUS)]
-        #print "locks = ",[hash(l) for l in locks]
         for age in range(self.MIN_AGE, self.MAX_AGE, self.BIN_SIZE):
             bottom = age
             top = age+self.BIN_SIZE
@@ -146,8 +134,7 @@ class Community():
                                         
                 #start a new process for it
                 pipe_top, pipe_bottom = multiprocessing.Pipe()
-                #p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom, semaphore))
-                p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom, locks[((gq.my_index-sex)/2)%self.NUM_CPUS]))
+                p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))
                 p.start()
                 self.pipes[gq.my_index] = pipe_top
         
@@ -214,16 +201,16 @@ class Community():
         """
         Take a single time step (one week) in the simulation. 
         """ 
-        print "=========time",self.time,"============="
+        #print "===time",self.time,"==="
         #1. Time progresses
-        start = Time.time()
+#        start = Time.time()
         self.time_operator.step()        
-        print "time operator:\t",Time.time()-start
+#        self.time_op = np.append(self.time_op, Time.time()-start)
+        #print "time operator:\t",Time.time()-start
         
         #2. Form and dissolve relationships
-        start = Time.time()
+#        start = Time.time()
         self.relationship_operator.step()
-        print "rela operator:\t",Time.time()-start
 #        print "  > num rela:",len(self.network.edges())
 #        print "  > recruit:", self.recruit
 #        num_gq = 0
@@ -233,11 +220,14 @@ class Community():
 #            agents = pipe.recv()
 #            num_gq+=len(agents.heap)
 #        print "    agents in gqs:",num_gq
+#        self.rela_op = np.append(self.rela_op, Time.time()-start)
+        #print "rela operator:\t",Time.time()-start
 
         #3. HIV transmission
-        start = Time.time()
+#        start = Time.time()
         self.infection_operator.step()
-        print "infe operator:\t",Time.time()-start
+#        self.infe_op = np.append(self.infe_op, Time.time()-start)
+        #print "infe operator:\t",Time.time()-start
         
     def cleanup(self):
         """

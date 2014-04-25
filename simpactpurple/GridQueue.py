@@ -4,25 +4,15 @@ The module for the GridQueue class and function for listening.
 import random
 import PriorityQueue  # lucio's implementation
 import numpy as np
-import sys
-import cProfile
-import time as Time
 
-def listen(gq, pipe, lock):
-    cProfile.runctx('listen2(gq,pipe,lock)',globals(),locals(),'profile%d.prof' %gq.my_index)
-    
-def listen2(gq, pipe, lock):    
+def listen(gq, pipe):    
     """
     Listens for an action from *pipe* to perform on *gq*. *semaphore* object
     passed by relationship operator which creates it -- allows simulation to
     use less than all the cores of the machine. 
     """
-    #print "gq",gq.my_index,"started with lock",hash(lock)
     while True:
         action = pipe.recv()
-        start = Time.time()
-        lock.acquire()
-        start2 = Time.time()
         if action == "recruit":
             pipe.send(gq.recruit())
         elif action == "enquire":
@@ -38,15 +28,9 @@ def listen2(gq, pipe, lock):
         elif action == "time":
             gq.time = pipe.recv()
         elif action == "terminate":
-            lock.release()
             break
         else:
             raise ValueError, "GridQueue received unknown action:" + action
-        lock.release()
-        end = Time.time()
-        if action == "enquire":
-            print "      GQ",gq.my_index,"total",round(end-start,6),
-            print "working",round(end-start2,6),"waiting",round(start2-start,6)
 
 
 class GridQueue():
@@ -76,7 +60,6 @@ class GridQueue():
         """
         #0. return agents for main queue (if any)
         if self.my_agents.empty(): 
-            #print "  GQ",self.my_index,"return empty"
             return None
         
         #1. reorganize if dissimilar from previous
@@ -145,11 +128,6 @@ class GridQueue():
                 accept, match = new_accept, new_match
                 match_name = match.attributes["NAME"]        
         
-        #sanity check
-#        if match.last_match == self.time:
-#            print "**match apology**  ",
-#            print "GQ",self.my_index, "suitor",suitor,"match:",match,"queue:",[(p,a.attributes["NAME"]) for p,a in self.my_agents.heap]
-
         #finally, return match
         match.last_match = self.time
         self.my_agents.push(match.last_match, match)  # move from top position        
