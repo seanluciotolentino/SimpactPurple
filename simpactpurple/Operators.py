@@ -43,18 +43,14 @@ class RelationshipOperator():
         Decrement duration of relationships by 1 week,
         remove relationships that have expired.
         """
-        network = self.master.network
-        relationships = network.edges() 
-        for r in relationships:
-            try:
-                network.get_edge_data(r[0], r[1])["duration"] -= 1
-            except TypeError:
-                print "***TypeError***"
-                print "agent1",r[0],"age",self.master.age(r[0]),"time removed",r[0].attributes["TIME_REMOVED"]
-                print "agent2",r[1],"age",self.master.age(r[1]),"time removed",r[1].attributes["TIME_REMOVED"]
-                raise TypeError
-            if(network.get_edge_data(r[0], r[1])["duration"] < 0):
-                self.dissolve_relationship(r[0], r[1])
+#        network = self.master.network
+#        relationships = network.edges() 
+#        for r in relationships:
+#            network.get_edge_data(r[0], r[1])["duration"] -= 1
+#            if(network.get_edge_data(r[0], r[1])["duration"] < 0):
+#                self.dissolve_relationship(r[0], r[1])
+        for r in self.master.relationships_ending_at[self.master.time]:
+            self.dissolve_relationship(r[0], r[1])
 
     def recruit(self):
         """
@@ -120,16 +116,18 @@ class RelationshipOperator():
         Forms a relationship between agent1 and agent2.
         """
         d = self.duration(agent1, agent2)
-        #agent1.last_match = self.master.time
-        #agent2.last_match = self.master.time
+        
         self.master.relationships.append([agent1, agent2, self.master.time, self.master.time + d])
         self.master.network.add_edge(agent1, agent2, {"duration": d})
+
+        #cache the ending time for easier access        
+        end_time = int(np.min((self.master.time + d, self.master.NUMBER_OF_YEARS*52)))
+        self.master.relationships_ending_at[end_time].append((agent1,agent2))
 
     def dissolve_relationship(self, agent1, agent2):
         """
         Dissolves a relationship between agent1 and agent2.
         """
-        #print "dissolving relationship",agent1,agent2
         self.master.network.remove_edge(agent1, agent2)
 
         #add agents into appropriate grid queues
@@ -183,8 +181,9 @@ class TimeOperator():
             msg = self.master.pipes[queue].recv()
             while msg != 'done':
                 agent = self.master.agents[msg]
-                self.remove(agent)
-                self.replace(agent)
+                if self.master.network.degree(agent)<=0:  #agent still has relationships
+                    self.remove(agent)
+                    self.replace(agent)
                 msg = self.master.pipes[queue].recv()
                 
         #1.3. Terminate old grid queue if necessary
@@ -238,7 +237,6 @@ class TimeOperator():
 #            self.master.add_to_grid_queue(other)
 
         #house keeping
-        #print "removing",agent.attributes["NAME"]
         agent.grid_queue = None
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time

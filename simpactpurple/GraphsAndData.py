@@ -216,7 +216,7 @@ def infection_data(s):
     """
     Returns a list with total number of infections at every timestep. 
     """
-    num_weeks = s.time - 1  # don't count the last week
+    num_weeks = s.time
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
@@ -231,11 +231,11 @@ def population_data(s):
     """
     Returns a list with total number of individuals at every timestep.
     """
-    num_weeks = s.time - 1  # don't count the last week
+    num_weeks = s.time
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
-        start = agent.attributes["TIME_ADDED"]
+        start = max(0, agent.attributes["TIME_ADDED"])
         end = min(num_weeks,agent.attributes["TIME_REMOVED"])
         for t in range(start, end):
             counts[t]+=1.0
@@ -256,7 +256,7 @@ def prevalence_graph(s, filename = None):
     (string), the graph is saved to the file instead of displayed on the 
     screen.
     """
-    num_weeks = s.time - 1  # don't count the last week
+    num_weeks = s.time
     prev = prevalence_data(s)
     
     plt.ioff()

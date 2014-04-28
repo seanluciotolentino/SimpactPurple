@@ -84,6 +84,7 @@ class Community():
         #mainloop
         self.update_recruiting(self.RECRUIT_INITIAL)
         for t in range(self.RECRUIT_WARM_UP):
+            print "---------time",t,"---------------"
             self.time = t
             self.step()
         
@@ -112,6 +113,7 @@ class Community():
         self.relationships = []
         self.grid_queues = {}  # {gq.index : gq}
         self.pipes = {}  # {gq.index : pipe}
+        self.relationships_ending_at = {t:[] for t in range(1+int(self.NUMBER_OF_YEARS*52))}
         self.main_queue = PriorityQueue.PriorityQueue()
 
         #grid queues and operators        
