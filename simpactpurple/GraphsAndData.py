@@ -197,7 +197,7 @@ def formed_relations_graph(s, filename = None):
 def relations_graph(s, filename = None):
     """
     Makes a graph with a line for each relationship. This is an extremely
-    slot graph. 
+    slow graph. 
     """
     fig = plt.figure()
     
@@ -216,7 +216,7 @@ def infection_data(s):
     """
     Returns a list with total number of infections at every timestep. 
     """
-    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = s.time - 1  # don't count the last week
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
@@ -231,7 +231,7 @@ def population_data(s):
     """
     Returns a list with total number of individuals at every timestep.
     """
-    num_weeks = min(s.time,int(np.floor(52*s.NUMBER_OF_YEARS)))
+    num_weeks = s.time - 1  # don't count the last week
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
@@ -256,12 +256,13 @@ def prevalence_graph(s, filename = None):
     (string), the graph is saved to the file instead of displayed on the 
     screen.
     """
-    num_weeks = min(s.time,int(np.floor(52*s.NUMBER_OF_YEARS)))
+    num_weeks = s.time - 1  # don't count the last week
     prev = prevalence_data(s)
     
     plt.ioff()
     fig = plt.figure()
     plt.plot(np.arange(0,num_weeks)/52.0,prev)
+    plt.ylim(0,np.max(prev)+0.1)
     plt.xlabel('Time (Years)')
     plt.ylabel('Prevalence (%)')
     plt.title('Prevalence')

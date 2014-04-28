@@ -16,9 +16,12 @@ import simpactpurple.GraphsAndData as gad
 
 if __name__ == '__main__':
     s = simpactpurple.Community()
-    s.INITIAL_POPULATION = 100
-    s.probability_multiplier = -0.2
-    s.NUMBER_OF_YEARS = 1
+    s.INITIAL_POPULATION = 1000
+    s.probability_multiplier = -0.2  # -0.01 is very wide, -0.5 is very narrow
+    s.NUMBER_OF_YEARS = 30
+    s.RECRUIT_WARM_UP = 20
+    s.RECRUIT_INITIAL = 0.02
+    s.RECRUIT_RATE = 0.005
     s.run(timing = True)
 
     #GRAPH VERIFICATION
