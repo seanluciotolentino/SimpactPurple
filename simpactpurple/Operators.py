@@ -6,6 +6,7 @@ import Queue
 import numpy as np
 import numpy.random as random
 import time as Time
+import networkx
 
 class RelationshipOperator():
     """
@@ -240,6 +241,9 @@ class TimeOperator():
         agent.grid_queue = None
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
+        if agent.time_of_infection < np.inf:
+            #print "removing infected agent",agent,"time of infection",agent.time_of_infection
+            self.master.infection_operator.infected_agents.remove(agent)
         
     def replace(self, agent):
         self.master.make_population(1)
@@ -250,6 +254,7 @@ class InfectionOperator():
     """
     def __init__(self, master):
         self.master = master
+        self.infected_agents = []
 
     def step(self):
         """
@@ -259,13 +264,17 @@ class InfectionOperator():
         """
         #Go through edges and flip coin for infections
         now = self.master.time
-        relationships = self.master.network.edges()
-        for r in relationships:
-            if(r[0].time_of_infection < now and r[1].time_of_infection > now and random.random() < self.master.INFECTIVITY):
-                r[1].time_of_infection = now
-                continue
-            if(r[1].time_of_infection < now and r[0].time_of_infection > now and random.random() < self.master.INFECTIVITY):
-                r[0].time_of_infection = now
+        for agent in self.infected_agents:
+            relationships = self.master.network.edges(agent)
+            
+            for r in relationships:
+                if(r[0].time_of_infection < now and r[1].time_of_infection > now and random.random() < self.master.INFECTIVITY):
+                    r[1].time_of_infection = now
+                    self.infected_agents.append(r[1])
+                    continue
+                if(r[1].time_of_infection < now and r[0].time_of_infection > now and random.random() < self.master.INFECTIVITY):
+                    r[0].time_of_infection = now
+                    self.infected_agents.append(r[0])
 
     def perform_initial_infections(self, initial_prevalence, seed_time):
         """
@@ -273,5 +282,7 @@ class InfectionOperator():
         """
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
         for i in range(infections):
-            agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]
+            #agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]
+            agent = random.choice(self.master.agents.values())
             agent.time_of_infection = seed_time * 52
+            self.infected_agents.append(agent)
