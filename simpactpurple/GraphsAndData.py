@@ -13,7 +13,7 @@ if os.popen("echo $DISPLAY").read().strip() == '':  # display not set
 import matplotlib.pyplot as plt
 
 
-def age_mixing_data(s, filename = None):
+def age_mixing_data(s):
     """
     Generates a scatter plot of male and female ages for each relationship
     formed. If *filename* is provided (string), the graph is saved to the 
@@ -197,7 +197,7 @@ def formed_relations_graph(s, filename = None):
 def relations_graph(s, filename = None):
     """
     Makes a graph with a line for each relationship. This is an extremely
-    slot graph. 
+    slow graph. 
     """
     fig = plt.figure()
     
@@ -216,7 +216,7 @@ def infection_data(s):
     """
     Returns a list with total number of infections at every timestep. 
     """
-    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = s.time
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
@@ -231,11 +231,11 @@ def population_data(s):
     """
     Returns a list with total number of individuals at every timestep.
     """
-    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = s.time
     counts = [0]*num_weeks
     agents = s.agents.values()
     for agent in agents:
-        start = agent.attributes["TIME_ADDED"]
+        start = max(0, agent.attributes["TIME_ADDED"])
         end = min(num_weeks,agent.attributes["TIME_REMOVED"])
         for t in range(start, end):
             counts[t]+=1.0
@@ -256,13 +256,13 @@ def prevalence_graph(s, filename = None):
     (string), the graph is saved to the file instead of displayed on the 
     screen.
     """
-    num_weeks = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS)))
+    num_weeks = s.time
     prev = prevalence_data(s)
     
     plt.ioff()
     fig = plt.figure()
     plt.plot(np.arange(0,num_weeks)/52.0,prev)
-    plt.ylim(0,1)
+    plt.ylim(0,np.max(prev)+0.1)
     plt.xlabel('Time (Years)')
     plt.ylabel('Prevalence (%)')
     plt.title('Prevalence')
