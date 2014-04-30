@@ -51,8 +51,8 @@ class Community():
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
         self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*random.exponential(5)
-        self.RECRUIT_WARM_UP = 5
-        self.RECRUIT_INITIAL = 0.01
+        self.RECRUIT_WARM_UP = 20
+        self.RECRUIT_INITIAL = 0.02
         self.RECRUIT_RATE = 0.005
         
         #infection operator
@@ -84,13 +84,13 @@ class Community():
         #mainloop
         self.update_recruiting(self.RECRUIT_INITIAL)
         for t in range(self.RECRUIT_WARM_UP):
-            print "---------time",t,"---------------"
+            #print "---------time",t,"---------------"
             self.time = t
             self.step()
         
         self.update_recruiting(self.RECRUIT_RATE)
         for t in range(self.RECRUIT_WARM_UP, int(self.NUMBER_OF_YEARS*52)):
-            print "---------time",t,"---------------"
+            #print "---------time",t,"---------------"
             self.time = t
             self.step()
         
@@ -192,10 +192,8 @@ class Community():
         
         #agent given a grid queue at initialization
         grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-                        
         agent.grid_queue = grid_queue.index
         self.add_to_grid_queue(agent)
-        #print "  adding agent",agent.attributes["NAME"],"to gq",agent.grid_queue
         
     def add_to_grid_queue(self, agent):
         """
@@ -210,7 +208,7 @@ class Community():
         try:
             self.pipes[agent.grid_queue].send("add")
             self.pipes[agent.grid_queue].send(agent)
-        except KeyError:
+        except KeyError:  # agent's grid_queue terminated
             #only remove agent if (s)he has no other relationships
             if self.network.degree(agent)<=0:
                 self.time_operator.remove(agent)
@@ -227,17 +225,13 @@ class Community():
         """
         Take a single time step (one week) in the simulation. 
         """
-        #print self.debug()
         #1. Time progresses
-        #print "time operator step"
         self.time_operator.step()
         
-        #2. Form and dissolve relationships
-        #print "relation operator step"
+        #2. Form and dissolve relationships"
         self.relationship_operator.step()
 
         #3. HIV transmission
-        #print "infection operator step"
         self.infection_operator.step()
         
     def cleanup(self):
