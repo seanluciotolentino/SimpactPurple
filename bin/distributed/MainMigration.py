@@ -11,7 +11,7 @@ is the initial test script for proof of concept.
 
 from mpi4py import MPI
 import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
-import simpactpurple.distributed.MigrationOperator
+import simpactpurple.distributed.MigrationOperator as MigrationOperator
 import sys
 import simpactpurple.GraphsAndData as GraphsAndData
 
@@ -23,22 +23,25 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 #simulation variables
-if len(sys.argv)>1: pop = int(sys.argv[1])
+if len(sys.argv)>1:
+    pop = int(sys.argv[1])
 else: 
     pop = 200
     print "Using default population size:",pop
     
-if len(sys.argv)>2: time = float(sys.argv[2])
+if len(sys.argv)>2:
+    time = float(sys.argv[2])
 else: 
     time = 30
     print "Using default number years:",time
 
+#assign roles via ranks
 if rank == 0: #Migration Operator
     mo = MigrationOperator.MigrationOperator(comm)
     mo.NUMBER_OF_YEARS = time
     mo.run()
 else:
-    primary, others = comm.recv(source = 0)  # does this need to be blocking?
+    primary, others = comm.recv(source = 0)
     c = CommunityDistributed.CommunityDistributed(comm, primary, others, migration = True)
     c.INITIAL_POPULATION = pop
     c.NUMBER_OF_YEARS = time

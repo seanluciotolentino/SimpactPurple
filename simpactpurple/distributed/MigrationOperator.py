@@ -14,9 +14,11 @@ class MigrationOperator:
         self.comm = comm
         self.agents = {}  # rank -> [list of agents on rank]
         self.all_agents = {}  # agent_name -> agent
+        self.time = 0
+        self.rank = self.comm.Get_rank()    
 
         #define primaries and communities:
-        self.communities = {1:3, 4:2}
+        self.communities = {1:3, 4:2}  # {primary:number_}
         for primary in self.communities:
             others = range(primary,primary+self.communities[primary])
             self.agents[primary] = []
@@ -25,7 +27,8 @@ class MigrationOperator:
                 self.comm.send((primary, others), dest = rank)
                 others.append(rank)
                 print "Migration Operator sent:",primary,others,"to",rank            
-        #define migration pattern
+       
+       #define migration pattern
         """
               \  to 1   to 2
         from 1  [1->1   1->2]
@@ -36,8 +39,6 @@ class MigrationOperator:
         """
         self.migration = {(1,4):0.1, (4,1):0.2}  # (src, dest) -> fraction
         #self.migration = {(1,4):0.0, (4,1):0.0}  # try it with no migration first
-	self.time = 0
-        self.rank = self.comm.Get_rank()    
         
     def run(self):
         #initially listen for agents
@@ -80,17 +81,12 @@ class MigrationOperator:
         accordingly.
         """
         #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
-        req = self.comm.irecv(dest = from_whom)  # data depends on msg
+        msg, agent = self.comm.recv(dest = from_whom)  # data depends on msg
         while True:
-            #continually check that a message was received
-            flag, message = req.test()
-            if not flag: continue
-            msg, agent = message
             #print "  > listening on",self.rank,"| msg:",msg,"agent:",agent
             if msg == 'done':
                 break
-            req = self.comm.irecv(dest = from_whom)  # listen for next message
-
+            
             #parse message and act            
             if msg == 'add':
                 self.agents[from_whom].append(agent)
@@ -99,6 +95,7 @@ class MigrationOperator:
                 agent = self.all_agents[agent]  # convert name to known agent
                 agent.attributes["MIGRATION"].append((self.time, from_whom, 0))
                 self.agents[from_whom].remove(agent)
+            msg, agent = self.comm.recv(dest = from_whom)  # listen for next message
         
         #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
         #print
