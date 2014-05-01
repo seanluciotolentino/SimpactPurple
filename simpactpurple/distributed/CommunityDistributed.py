@@ -141,15 +141,9 @@ class CommunityDistributed(simpactpurple.Community):
         #check that agent in community boundaries
         if agent.partition is not self.rank:
             self.comm.send(('add_to_grid_queue',agent.attributes["NAME"]), dest = agent.partition)  # send to other community
-            return
-        
-        try:
+        else:
             self.pipes[agent.grid_queue].send("add")
             self.pipes[agent.grid_queue].send(agent)
-        except KeyError:  # agent's grid_queue terminated
-            if self.network.degree(agent)<=0:  # only remove agent if (s)he has no other relationships
-                self.time_operator.remove(agent)
-                self.time_operator.replace(agent)
         
     def listen(self, for_what, from_whom):
         """
@@ -164,18 +158,23 @@ class CommunityDistributed(simpactpurple.Community):
                 break
             
             #parse message and act            
-            if msg == 'add_to_simulation':
-                agent = data  # data is agent object here
+            if msg == 'add_to_simulation': # primary to non-primary
+                agent = data
                 self.agents[agent.attributes["NAME"]] = agent
-            elif msg == 'add_to_grid_queue':
-                agent = self.agents[data]  # data is agent name here
+            elif msg == 'add_to_grid_queue': # primary to non-primary
+                agent = self.agents[data]
                 self.add_to_grid_queue(agent)
-            elif msg == 'remove':
+            elif msg == 'remove_from_simulation': #non-primary to primary
+                agent_name = data
+                agent = self.agents[agent_name]
+                self.time_operator.remove(agent)
+            elif msg == 'remove_from_grid_queue': # primary to non-primary
                 agent_name = data  # data is agent name here
                	agent = self.agents[agent_name]
                 agent_pipe = self.pipes[agent.grid_queue]
                 agent_pipe.send("remove")
                 agent_pipe.send(agent_name)
+                
             elif msg == 'add_relationship':
                 relationship = data  # data is relationship tuple here
                 agent1 = self.agents[relationship[0]]  # look up name
@@ -184,6 +183,8 @@ class CommunityDistributed(simpactpurple.Community):
             elif msg == 'push':
                 agent = data  # data is agent object here
                 self.main_queue.push(agent.grid_queue, agent)
+            else:
+                raise Exception,"Unknown msg received: " + msg
             
             msg, data = self.comm.recv(source = from_whom)  # listen for next message
         #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
