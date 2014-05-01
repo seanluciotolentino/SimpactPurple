@@ -197,12 +197,8 @@ class TimeOperator():
             msg = self.master.pipes[queue].recv()
             while msg != 'done':
                 agent = self.master.agents[msg]
-                if self.master.network.degree(agent)<=0:  #agent still has relationships
-                    #print "  time op remove",agent
-                    self.remove(agent)
-                    self.replace(agent)
-                #else:
-                #    print "  time op skip", agent, [self.master.network.get_edge_data(e[0],e[1]) for e in self.master.network.edges(agent)]
+                self.remove(agent)
+                self.replace(agent)
                 msg = self.master.pipes[queue].recv()
                 
         #1.3. Terminate old grid queue if necessary
@@ -242,17 +238,13 @@ class InfectionOperator():
         probablity this is relative to infectivity.
         """
         #Go through edges and flip coin for infections
-        now = self.master.time
         for agent in self.infected_agents:
-            relationships = self.master.network.edges(agent)
-            
+            relationships = self.master.network.edges(agent)            
             for r in relationships:
                 if(r[0].time_of_infection < now and r[1].time_of_infection > now and random.random() < self.master.INFECTIVITY):
-                    r[1].time_of_infection = now
                     self.infected_agents.append(r[1])
                     continue
                 if(r[1].time_of_infection < now and r[0].time_of_infection > now and random.random() < self.master.INFECTIVITY):
-                    r[0].time_of_infection = now
                     self.infected_agents.append(r[0])
 
     def perform_initial_infections(self, initial_prevalence, seed_time):
