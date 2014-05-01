@@ -70,27 +70,13 @@ class CommunityDistributed(simpactpurple.Community):
             ceils = int(fraction*nodes)  # the number of nodes that get the floor
             floors = int(nodes - ceils)  # the number of nodes that get the ceil
             
-            #debug
-#            print "===update recruiting at",self.time,"==="
-#            print "nodes", nodes
-#            print "recruit",recruit
-#            print "per_node_float",per_node_float
-#            print "per_node_int",per_node_int
-#            print "fraction",fraction
-#            print "floors",floors
-#            print "ceils",ceils
-            
             #send recruit number
             self.recruit = int(np.floor(per_node_float))  # primary takes the last floor
-#            print "rank",self.rank,"changing recruit to",self.recruit,"at time",self.time                
             
             for other in self.others[:floors-1]:
                 self.comm.send(('recruit',int(np.floor(per_node_float))), dest = other)
             for other in self.others[floors-1:]:
                 self.comm.send(('recruit',int(np.ceil(per_node_float))), dest = other)
-                
-            
-#            print "=====done updating at",self.time,"===="
         else:
             #listen for recruit number
             msg, data = self.comm.recv(source = self.primary)
@@ -119,22 +105,30 @@ class CommunityDistributed(simpactpurple.Community):
         Save the agent's name for future reference, add to network, assign
         a location, and add to grid queue.
         """
+        #add primary community number as prefix to agent's name (for migration)
         if type(agent.attributes["NAME"]) == type(0):
             agent.attributes["NAME"] = str(self.primary) + "-" + str(agent.attributes["NAME"])
         
+        #save agent
         self.agents[agent.attributes["NAME"]] = agent
         self.network.add_node(agent)
         
-        #location
+        #assign a partition
         partitions = list(self.others)
         partitions.append(self.primary)  # only primary calls this so same as self.rank
         agent.partition = partitions[random.randint(len(partitions))]
         if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
-        if self.migration:  # and not a update add
+        
+        #assign a grid queue
+        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
+        agent.grid_queue = grid_queue.index
+        self.add_to_grid_queue(agent)        
+        
+        if self.migration:  # and not an update add
             agent.attributes["MIGRATION"] = [(self.time, 0, self.rank)]
             self.comm.send(('add',agent), dest = 0)
-        self.add_to_grid_queue(agent)
+        
         
     def add_to_grid_queue(self, agent):
         """
@@ -144,16 +138,18 @@ class CommunityDistributed(simpactpurple.Community):
            2. Relationship Operator - a relationship is dissolved
            3. Community - in make_population in the mainloop
         """
-        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-        agent.grid_queue = grid_queue.my_index
-
         #check that agent in community boundaries
         if agent.partition is not self.rank:
             self.comm.send(('add_to_grid_queue',agent.attributes["NAME"]), dest = agent.partition)  # send to other community
             return
         
-        self.pipes[agent.grid_queue].send("add")
-        self.pipes[agent.grid_queue].send(agent)
+        try:
+            self.pipes[agent.grid_queue].send("add")
+            self.pipes[agent.grid_queue].send(agent)
+        except KeyError:  # agent's grid_queue terminated
+            if self.network.degree(agent)<=0:  # only remove agent if (s)he has no other relationships
+                self.time_operator.remove(agent)
+                self.time_operator.replace(agent)
         
     def listen(self, for_what, from_whom):
         """
@@ -161,7 +157,6 @@ class CommunityDistributed(simpactpurple.Community):
         accordingly.
         """
         #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
-        #req = self.comm.irecv(dest = from_whom)  # data depends on msg
         msg, data = self.comm.recv(source = from_whom)  # data depends on msg
         while True:
             #print "  > listening on",self.rank,"| msg:",msg,"data:",data

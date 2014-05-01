@@ -34,17 +34,6 @@ class RelationshipOperator(Operators.RelationshipOperator):
         for other in self.master.others:
             self.master.listen('new recruits', from_whom = other)
         
-        ##DEBUG -- figure out how many relationships are rejected each round
-#        if self.master.is_primary:
-#            self.rejected = 0.0
-#            relations_before = len(self.master.network.edges())
-##            self.master.debug()
-#            print "vvv == time", self.master.time,"========="
-#	    print "ended relationships:", self.master.relations - relations_before
-#	    self.master.ended_relationships.append(self.master.relations - relations_before)
-#        print "rank",self.master.rank,"time",self.master.time,"recruited", len(self.master.main_queue),"of",self.master.recruit
-            
-
         #2.1 Match
         while(not self.master.main_queue.empty()):
             self.match()
@@ -75,43 +64,37 @@ class RelationshipOperator(Operators.RelationshipOperator):
         Differs from normal RelationshipOperator by flipping a coin as to
         whether to add recruited agent to this main queue or other main queue.
         """
-        gq = self.master.grid_queues[random.randint(len(self.master.grid_queues))]
-        self.master.pipes[gq.my_index].send("recruit")
-        agent_name = self.master.pipes[gq.my_index].recv()
+        gq = self.master.grid_queues.keys()[random.randint(len(self.master.grid_queues))]
+        self.master.pipes[gq].send("recruit")
+        agent_name = self.master.pipes[gq].recv()
         if agent_name is not None:
             agent = self.master.agents[agent_name]
             
-            #send half of agents to other
+            #send fraction of agents to other communitiy
             if random.random() < 1.0/self.master.size:
                 self.master.main_queue.push(gq.my_index, agent)  # keep agent
             else:
-                self.master.comm.send(('push',agent),
-                                      dest=self.master.others[random.randint(len(self.master.others))])
+                other = self.master.others[random.randint(len(self.master.others))]
+                self.master.comm.send(('push',agent),dest=other)
     
-    def match(self):
-        """
-        Pop a suitor off the main queue and try to match him or her.
-        
-        Differs from normal RelationshipOperator only in step 3 -- primary
-        community adds relationship as normal, non-primary sends relationship
-        to primary via MPI.
-        """
+    def match_enquire(self):
         #1. get next suitor and request matches for him/her from grid queues
         suitor = self.master.main_queue.pop()[1]
         
-        #1.1 Return if matched
+        #1.1 Return if matched (only for primary)
         if self.master.is_primary and self.master.network.degree(\
             self.master.agents[suitor.attributes["NAME"]]) >= suitor.dnp:
             return
-	
-        #1.2 Parallel, send enquiries via pipe
+
+        #1.2 In parallel, send enquires via pipe            
         for pipe in self.master.pipes.values():
             pipe.send("enquire")
             pipe.send(suitor)
-        names = [pipe.recv() for pipe in self.master.pipes.values()]        
-        matches = [self.master.agents[n] for n in names if n is not None]
-
-        #2. Suitor flips coins with potential matches
+            
+        return suitor
+        
+    def match_process(self, suitor, mathces)
+        #3. Suitor flips coins with potential matches
         if not matches:  # no matches
             return
         pq = Queue.PriorityQueue()
@@ -122,7 +105,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
             decision = int(r < hazard)
             pq.put((-decision, match))
         
-        #3. Verify acceptance and form the relationship
+        #3.1 Verify acceptance and form the relationship
         accept, match = pq.get()
         match_name = match.attributes["NAME"]
         
@@ -167,6 +150,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
 #                print "  --> REJECTED: ", agent, "DEGREE", self.master.network.degree(agent)
                 return        
 #        print "  --> accepted"
+                
         #actually form the relationship        
         Operators.RelationshipOperator.form_relationship(self, agent1, agent2)
         

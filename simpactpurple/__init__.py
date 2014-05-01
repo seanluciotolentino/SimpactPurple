@@ -203,17 +203,21 @@ class Community():
            2. Relationship Operator - a relationship is dissolved
            3. Community - in make_population in the mainloop
         """
-#        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-#        agent.grid_queue = grid_queue.index
-        try:
-            self.pipes[agent.grid_queue].send("add")
-            self.pipes[agent.grid_queue].send(agent)
-        except KeyError:  # agent's grid_queue terminated
-            #only remove agent if (s)he has no other relationships
-            if self.network.degree(agent)<=0:
-                self.time_operator.remove(agent)
-                self.time_operator.replace(agent)
-    
+        #grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
+        #agent.grid_queue = grid_queue.index
+        #try:
+        self.pipes[agent.grid_queue].send("add")
+        self.pipes[agent.grid_queue].send(agent)
+        #print "  added",agent,"to",agent.grid_queue
+#        except KeyError:  # agent's grid_queue terminated
+#            #only remove agent if (s)he has no other relationships
+#            if self.network.degree(agent)<=0:
+#                print "  KE: removing agent",agent
+#                self.time_operator.remove(agent)
+#                self.time_operator.replace(agent)
+#            else:
+#                print "  KE: waiting to remove agent",agent
+#    
     def update_recruiting(self, rate):
         """
         Function called after initial warm up period -- updates the value for
@@ -225,12 +229,16 @@ class Community():
         """
         Take a single time step (one week) in the simulation. 
         """
+        #print "====",self.time,"===="
         #1. Time progresses
+        #print "==time operator"
         self.time_operator.step()
         
+        #print "==rela operator"
         #2. Form and dissolve relationships"
         self.relationship_operator.step()
 
+        #print "==infec operator"  
         #3. HIV transmission
         self.infection_operator.step()
         
@@ -241,11 +249,6 @@ class Community():
         """
         for pipe in self.pipes.values():
             pipe.send("terminate")
-            
-        for r in self.relationships:
-            agent1 = r[0]
-            agent2 = r[1]
-            r[3] = min((r[3], agent1.attributes["TIME_REMOVED"], agent2.attributes["TIME_REMOVED"]))
 
     def age(self, agent):
         """

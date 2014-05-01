@@ -27,10 +27,7 @@ class RelationshipOperator():
     def step(self):
         """
         Take a single time step in the simulation. 
-        """
-        #0. Dissolve relationships
-        self.update()
-        
+        """        
         #1. Recruit
         for i in range(self.master.recruit):  # *** do this better
             self.recruit()
@@ -39,13 +36,6 @@ class RelationshipOperator():
         while not self.master.main_queue.empty():
             self.match()
 
-    def update(self):
-        """
-        Decrement duration of relationships by 1 week,
-        remove relationships that have expired.
-        """
-        for r in self.master.relationships_ending_at[self.master.time]:
-            self.dissolve_relationship(r[0], r[1])
 
     def recruit(self):
         """
@@ -55,7 +45,7 @@ class RelationshipOperator():
         gq = self.master.grid_queues.keys()[random.randint(len(self.master.grid_queues))]
         #gq = random.choice(self.master.grid_queues.keys())
         self.master.pipes[gq].send("recruit")
-        agent_name = self.master.pipes[gq].recv()        
+        agent_name = self.master.pipes[gq].recv()  
         if agent_name is not None:
             agent = self.master.agents[agent_name]
             self.master.main_queue.push(gq, agent)
@@ -123,9 +113,7 @@ class RelationshipOperator():
             pq.put((-decision, match))
             
         #3.1 Verify acceptance and form the relationship
-        top = pq.get()
-        match = top[1]
-        accept = top[0]
+        accept, match = pq.get()
         if accept:
             self.form_relationship(suitor, match) 
             if self.master.network.degree(suitor) >= suitor.dnp:
@@ -140,13 +128,14 @@ class RelationshipOperator():
         Forms a relationship between agent1 and agent2.
         """
         d = self.duration(agent1, agent2)
-        
-        self.master.relationships.append([agent1, agent2, self.master.time, self.master.time + d])
-        self.master.network.add_edge(agent1, agent2, {"duration": d})
 
-        #cache the ending time for easier access        
-        end_time = int(np.min((self.master.time + d, self.master.NUMBER_OF_YEARS*52)))
+        #cache the ending time for easier access
+        end_time = int(np.min((self.master.time + d, self.master.NUMBER_OF_YEARS*52, 
+                               3381+agent1.born, 3381+agent2.born)))  # time when agent1/2 turn 65 (3380 = 65*52)
         self.master.relationships_ending_at[end_time].append((agent1,agent2))
+        
+        self.master.relationships.append((agent1, agent2, self.master.time, end_time))
+        self.master.network.add_edge(agent1, agent2, {"start":self.master.time, "end": end_time,})
 
     def dissolve_relationship(self, agent1, agent2):
         """
@@ -184,7 +173,7 @@ class TimeOperator():
         agents that are too old, and move agents to new grid queue (if
         required.)
         """
-        #0. Update the clock of the GridQueues (processes AND originals)
+        #0.1 Update the clock of the GridQueues (processes AND originals)
         pipes = self.master.pipes.values()
         for pipe in pipes:
             pipe.send("time")
@@ -192,6 +181,10 @@ class TimeOperator():
         
         for gq in self.master.grid_queues.values():  # kinda hacky
             gq.time = self.master.time
+            
+        #0.2 Update relationships
+        for r in self.master.relationships_ending_at[self.master.time]:
+            self.master.relationship_operator.dissolve_relationship(r[0], r[1])
             
         #1.1 Make a new grid queue if necessary
         if self.master.time%(self.master.BIN_SIZE*52)==0:
@@ -205,8 +198,11 @@ class TimeOperator():
             while msg != 'done':
                 agent = self.master.agents[msg]
                 if self.master.network.degree(agent)<=0:  #agent still has relationships
+                    #print "  time op remove",agent
                     self.remove(agent)
                     self.replace(agent)
+                #else:
+                #    print "  time op skip", agent, [self.master.network.get_edge_data(e[0],e[1]) for e in self.master.network.edges(agent)]
                 msg = self.master.pipes[queue].recv()
                 
         #1.3. Terminate old grid queue if necessary
@@ -220,12 +216,11 @@ class TimeOperator():
     def remove(self, agent):
         """
         Function for removing agents from the simulation.
-        """
+        """        
         #house keeping
         agent.grid_queue = None
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
-        agent.attributes["TIME_OF_INFECTION"] = agent.time_of_infection  # DEBUG
         if agent.time_of_infection < np.inf:
             self.master.infection_operator.infected_agents.remove(agent)
             
