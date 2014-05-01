@@ -34,7 +34,7 @@ class RelationshipOperator():
         #1. Recruit
         for i in range(self.master.recruit):  # *** do this better
             self.recruit()
-        
+            
         #2. Match
         while not self.master.main_queue.empty():
             self.match()
@@ -44,12 +44,6 @@ class RelationshipOperator():
         Decrement duration of relationships by 1 week,
         remove relationships that have expired.
         """
-#        network = self.master.network
-#        relationships = network.edges() 
-#        for r in relationships:
-#            network.get_edge_data(r[0], r[1])["duration"] -= 1
-#            if(network.get_edge_data(r[0], r[1])["duration"] < 0):
-#                self.dissolve_relationship(r[0], r[1])
         for r in self.master.relationships_ending_at[self.master.time]:
             self.dissolve_relationship(r[0], r[1])
 
@@ -58,8 +52,8 @@ class RelationshipOperator():
         Pick a random grid queue and send a request for a recruit. Recruited
         individuals are then added to the main_queue (self.master.main_queue).
         """
-        #gq = self.master.grid_queues[random.randint(len(self.master.grid_queues))]
-        gq = random.choice(self.master.grid_queues.keys())
+        gq = self.master.grid_queues.keys()[random.randint(len(self.master.grid_queues))]
+        #gq = random.choice(self.master.grid_queues.keys())
         self.master.pipes[gq].send("recruit")
         agent_name = self.master.pipes[gq].recv()        
         if agent_name is not None:
@@ -70,23 +64,52 @@ class RelationshipOperator():
         """
         Pop a suitor off the main queue and try to match him or her. 
         """
-        #1. get next suitor and request matches for him/her from grid queues
+        #1. send enquiry
+        suitor = self.match_enquire()
+        if not suitor: 
+            return
+        
+        #2. Recv replies
+        matches = self.match_recv()
+        
+        #3. process matches
+        self.match_process(suitor, matches)
+        
+    def match_enquire(self):
+        """
+        Get next suitor in the main_queue and send request for matches for 
+        him/her from grid queues.  Note that if a suitor was already matched
+        the method will return None and not send an enquiry message.
+        """
+        #1. Get next suitor
         suitor = self.master.main_queue.pop()[1]
         
         #1.1 Return if matched
         if self.master.network.degree(suitor) >= suitor.dnp:
             return
 
-        #print "    > suitor",suitor,"| matches:",
-        #1.6 in parallel, send enquiries via pipe
+        #1.2. In parallel, send enquiries via pipe
         for pipe in self.master.pipes.values():
             pipe.send("enquire")
             pipe.send(suitor)
+        
+        return suitor
+            
+    def match_recv(self):
+        """
+        Receive match messages from pipes and process them into agents.
+        """
+        #2. receive matches
         names = [pipe.recv() for pipe in self.master.pipes.values()]        
         matches = [self.master.agents[n] for n in names if n is not None]
-        #print names
+        
+        return matches
 
-        #2. Suitor flips coins with potential matches
+    def match_process(self, suitor, matches):
+        """
+        After receiving matches all suitor to choose.
+        """
+        #3. Suitor flips coins with potential matches
         if not matches:  # no matches
             return            
         pq = Queue.PriorityQueue()
@@ -99,7 +122,7 @@ class RelationshipOperator():
             decision = int(r < hazard)
             pq.put((-decision, match))
             
-        #3. Verify acceptance and form the relationship
+        #3.1 Verify acceptance and form the relationship
         top = pq.get()
         match = top[1]
         accept = top[0]
@@ -154,7 +177,7 @@ class TimeOperator():
     def __init__(self, master):
         self.master = master
         self.oldest_queues = self.master.grid_queues.keys()[:2]  # needs to be generalized...
-
+        
     def step(self):
         """
         Take a single step in the simulation: Go through agents, remove
@@ -172,7 +195,6 @@ class TimeOperator():
             
         #1.1 Make a new grid queue if necessary
         if self.master.time%(self.master.BIN_SIZE*52)==0:
-            print "  making grid queues",len(self.master.grid_queues)
             self.master.make_n_queues(self.master.SEXES)
             
         #1.2 Grab oldest agents from oldest grid queues
@@ -190,61 +212,23 @@ class TimeOperator():
         #1.3. Terminate old grid queue if necessary
         if self.master.time%(self.master.BIN_SIZE*52)==0:
             for queue in self.oldest_queues:
-                print "  ending gq",queue,"age",self.master.grid_queues[queue].age()
                 self.master.pipes[queue].send("terminate")
                 del self.master.grid_queues[queue]
                 del self.master.pipes[queue]
             self.oldest_queues = self.master.grid_queues.keys()[:2]
-            
-        
-        
-                
-#        #1. Increment ages of agents, move their queue if necessary
-#        agents = self.master.network.nodes()
-#        for agent in agents:
-#            agent_name = agent.attributes["NAME"]
-#            agent_pipe = self.master.pipes[agent.grid_queue]
-#
-#            #if too old
-#            if self.master.age(agent) >= self.master.MAX_AGE:
-#                self.remove(agent)
-#                self.replace(agent)
-#                continue  # go to the next agent
-#                
-#            #if (assigned to wrong gq) and (needs to be in gq)
-#            gq = self.master.grid_queues[agent.grid_queue]
-#            if not gq.accepts(agent) and self.master.network.degree(agent) <= agent.dnp:
-#                #1. remove from current gq
-#                agent_pipe.send("remove")
-#                agent_pipe.send(agent_name) 
-#                
-#                #2. add to new grid queue
-#                self.master.add_to_grid_queue(agent)
                 
     def remove(self, agent):
         """
         Function for removing agents from the simulation.
         """
-        #end ongoing relations
-#        relations = self.master.network.edges(agent)
-#        for r in relations:
-#            other = [r[0],r[1]][r[0]==agent]
-#            other_gq = self.master.grid_queues[other.grid_queue]
-#            self.master.network.remove_edge(r[0], r[1])
-#            if self.master.age(other) >= self.master.MAX_AGE:  # if going to be remove later
-#                continue
-#            if  not other_gq.accepts(other):  # if gq going to be updated later
-#                continue
-#            self.master.add_to_grid_queue(other)
-
         #house keeping
         agent.grid_queue = None
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
+        agent.attributes["TIME_OF_INFECTION"] = agent.time_of_infection  # DEBUG
         if agent.time_of_infection < np.inf:
-            #print "removing infected agent",agent,"time of infection",agent.time_of_infection
             self.master.infection_operator.infected_agents.remove(agent)
-        
+            
     def replace(self, agent):
         self.master.make_population(1)
 
@@ -281,8 +265,11 @@ class InfectionOperator():
         Seeds the population with *initial_prevalence* at *seed_time*.
         """
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
+        agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]
         for i in range(infections):
-            #agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]
-            agent = random.choice(self.master.agents.values())
+            while agent in self.infected_agents:
+                agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]
+                #agent = random.choice(self.master.agents.values())
             agent.time_of_infection = seed_time * 52
             self.infected_agents.append(agent)
+        
