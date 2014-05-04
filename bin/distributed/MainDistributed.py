@@ -4,8 +4,9 @@ Created on Tue Oct 15 11:14:02 2013
 
 @author: Lucio
 
-A script which uses MPI (mpi4py) to overlook several community simulations.  This
-is the initial test script for proof of concept.
+A script which uses MPI (mpi4py) to overlook several community simulations. The
+script detects the number of nodes assigned and distributed the work among a 
+primary node and worker nodes.
 
 """
 
@@ -26,8 +27,6 @@ others.remove(comm.Get_rank())
 c = CommunityDistributed.CommunityDistributed(comm, 0, others)
 c.INITIAL_POPULATION = int(sys.argv[1])
 c.NUMBER_OF_YEARS = float(sys.argv[2])
-c.DURATIONS = lambda a1, a2: (np.mean((c.age(a1),c.age(a2)))/5)*random.exponential(5)
-#c.DURATIONS = lambda a1, a2: 4*random.exponential(5)
 c.run()
 
 if comm.Get_rank() == 0:
@@ -35,10 +34,6 @@ if comm.Get_rank() == 0:
     #GraphsAndData.sexual_network_graph(c,filename='sexual_network_distributed.png')
     #GraphsAndData.demographics_graph(c,filename='demographics_distributed.png')
     #GraphsAndData.prevalence_graph(c, filename='prevalence_distributed.png')
-	#GraphsAndData.age_mixing_graph(c, filename='agemixing_distributed.png')
+    #GraphsAndData.age_mixing_graph(c, filename='agemixing_distributed.png')
 	#GraphsAndData.relationship_durations(c, filename='durations_distributed.png')
 	#GraphsAndData.gap_lengths(c, filename='gaplengths_distributed.png')
-    print len(c.network.edges())
-    #print "weeks:",len(c.ended_relationships)
-    #print "mean ended relations:",np.mean(c.ended_relationships)
-#print "exit"
