@@ -42,9 +42,9 @@ class Community():
         
         #MODEL OPERATORS
         #hazard
-        self.preferred_age_difference = -0.1
-        self.probability_multiplier = -0.2
-        self.preferred_age_difference_growth = 0.1
+        self.PREFERRED_AGE_DIFFERENCE = -0.1
+        self.PROBABILITY_MULTIPLIER = -0.2
+        self.PREFERRED_AGE_DIFFERENCE_GROWTH = 0.1
         
         #relationship operator
         self.SEXES = 2
@@ -59,7 +59,7 @@ class Community():
         #infection operator
         self.INFECTIVITY = 0.01
         self.INTIIAL_PREVALENCE = 0.01
-        self.SEED_TIME = 20  # in years        
+        self.SEED_TIME = 20  # in weeks
 
         #time operator
         self.time = -1
@@ -145,9 +145,9 @@ class Community():
             gq = GridQueue.GridQueue(self.next_top, self.next_bottom, self.grid_queue_index)
             gq.max_age = self.MAX_AGE
             gq.sex = i  # not used
-            gq.preferred_age_difference = self.preferred_age_difference
-            gq.probability_multiplier = self.probability_multiplier
-            gq.preferred_age_difference_growth = self.preferred_age_difference_growth
+            gq.preferred_age_difference = self.PREFERRED_AGE_DIFFERENCE
+            gq.probability_multiplier = self.PROBABILITY_MULTIPLIER
+            gq.preferred_age_difference_growth = self.PREFERRED_AGE_DIFFERENCE_GROWTH
             self.grid_queues[gq.index] = gq
             self.grid_queue_index+=1
                                     
@@ -253,9 +253,9 @@ class Community():
             mean_age = (agent1_age + agent2_age) / 2.0
             age_difference = agent2_age - agent1_age
             
-        pad = (1 - (2*agent1.sex))* self.preferred_age_difference  # correct for perspective
-        top = abs(age_difference - (pad*self.preferred_age_difference_growth*mean_age) )
-        h = np.exp(self.probability_multiplier * top ) ;
+        pad = (1 - (2*agent1.sex))* self.PREFERRED_AGE_DIFFERENCE  # correct for perspective
+        top = abs(age_difference - (pad*self.PREFERRED_AGE_DIFFERENCE_GROWTH*mean_age) )
+        h = np.exp(self.PROBABILITY_MULTIPLIER * top ) ;
         return (agent1.sex ^ agent2.sex)*h
 
     def debug(self):

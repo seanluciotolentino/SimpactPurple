@@ -250,6 +250,6 @@ class InfectionOperator():
             while agent in self.infected_agents:
                 agent = self.master.agents[random.randint(0, len(self.master.agents) - 1)]
                 #agent = random.choice(self.master.agents.values())
-            agent.time_of_infection = seed_time * 52
+            agent.time_of_infection = seed_time
             self.infected_agents.append(agent)
         
