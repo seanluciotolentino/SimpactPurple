@@ -5,7 +5,7 @@ except ImportError:
 
 setup(
     name='SimpactPurple',
-    version='0.1.3',
+    version='1.0.0',
     author='S. Lucio Tolentino',
     author_email='sean-tolentino@uiowa.edu',
     packages=['simpactpurple','simpactpurple/distributed'],
