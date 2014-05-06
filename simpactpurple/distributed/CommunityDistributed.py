@@ -5,6 +5,9 @@ import OperatorsDistributed
 import time as Time
 
 class CommunityDistributed(simpactpurple.Community):
+    """
+    The main object for a distributed community simulation."
+    """
 
     def __init__(self, comm, primary, others, migration = False):
         simpactpurple.Community.__init__(self)
@@ -16,40 +19,8 @@ class CommunityDistributed(simpactpurple.Community):
         self.others = others
         self.size = len(self.others) + 1
         self.migration = migration
-        self.NUMBER_OF_YEARS = 30
         
-        #MODEL OPERATORS
-        #hazard
-        self.preferred_age_difference = -0.1
-        self.probability_multiplier = -0.2
-        self.preferred_age_difference_growth = 0.1
-        
-        #relationship operator
-        self.SEXES = 2
-        self.MIN_AGE = 15
-        self.MAX_AGE = 65
-        self.BIN_SIZE = 5
-        self.MAIN_QUEUE_MAX = 0.3  # proportion of initial population
-        self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*10*random.exponential(5)  # scale*expo(shape)
-        #for controlling recruitment
-        self.RECRUIT_WARM_UP = 5
-        self.INITIAL_RECRUIT = 0.01
-        self.RECRUIT_RATE = 0.005
-        
-        #infection operator
-        self.INFECTIVITY = 0.01
-        self.INTIIAL_PREVALENCE = 0.01  # while there's not infection operator...
-        self.SEED_TIME = 0  # in years        
-
-        #time operator
-        self.time = -1  # initialization time
-                
-        #MODEL POPULATION
-        self.INITIAL_POPULATION = 100
-        self.AGENT_ATTRIBUTES = {}
-        self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
-        self.SEX = lambda: random.randint(self.SEXES)
-        self.DNP = lambda: random.power(0.1)*1.5  #power(shape)*scale
+        #all other parameters inherited
         
     def broadcast(self, message):
         """
@@ -60,8 +31,12 @@ class CommunityDistributed(simpactpurple.Community):
             self.comm.send(message, dest = other)
             
     def update_recruiting(self, rate):
+        """
+        Change the number of agents to recruit during relationship operator's
+        step.
+        """
         if self.is_primary:
-            #calculate recruit numbers
+            #1. Calculate recruit numbers
             nodes = self.size
             recruit = np.ceil(self.INITIAL_POPULATION*rate)
             per_node_float = recruit/nodes
@@ -70,9 +45,8 @@ class CommunityDistributed(simpactpurple.Community):
             ceils = int(fraction*nodes)  # the number of nodes that get the floor
             floors = int(nodes - ceils)  # the number of nodes that get the ceil
             
-            #send recruit number
+            #2. Send recruit number
             self.recruit = int(np.floor(per_node_float))  # primary takes the last floor
-            
             for other in self.others[:floors-1]:
                 self.comm.send(('recruit',int(np.floor(per_node_float))), dest = other)
             for other in self.others[floors-1:]:
@@ -80,10 +54,6 @@ class CommunityDistributed(simpactpurple.Community):
         else:
             #listen for recruit number
             msg, data = self.comm.recv(source = self.primary)
-#            if msg != 'recruit':
-#                raise Exception,"didn't receive correct message:"+msg+" data:"+str(data)
-#            else:
-#                print "rank",self.rank,"changing recruit to",data,"at time",self.time
             self.recruit = data
     
     def make_population(self, size):
@@ -106,12 +76,16 @@ class CommunityDistributed(simpactpurple.Community):
         a location, and add to grid queue.
         """
         #add primary community number as prefix to agent's name (for migration)
-        if type(agent.attributes["NAME"]) == type(0):
-            agent.attributes["NAME"] = str(self.primary) + "-" + str(agent.attributes["NAME"])
+        if type(agent.name) == type(0):
+            agent.name = str(self.primary) + "-" + str(agent.name)
         
         #save agent
-        self.agents[agent.attributes["NAME"]] = agent
+        self.agents[agent.name] = agent
         self.network.add_node(agent)
+        
+        #assign a grid queue
+        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
+        agent.grid_queue = grid_queue.index
         
         #assign a partition
         partitions = list(self.others)
@@ -119,10 +93,6 @@ class CommunityDistributed(simpactpurple.Community):
         agent.partition = partitions[random.randint(len(partitions))]
         if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
-        
-        #assign a grid queue
-        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-        agent.grid_queue = grid_queue.index
         self.add_to_grid_queue(agent)        
         
         if self.migration:  # and not an update add
@@ -140,11 +110,18 @@ class CommunityDistributed(simpactpurple.Community):
         """
         #check that agent in community boundaries
         if agent.partition is not self.rank:
-            self.comm.send(('add_to_grid_queue',agent.attributes["NAME"]), dest = agent.partition)  # send to other community
+            self.comm.send(('add_to_grid_queue',agent.name), dest = agent.partition)  # send to other community
         else:
             self.pipes[agent.grid_queue].send("add")
             self.pipes[agent.grid_queue].send(agent)
         
+    def listen_all(self, for_what):
+        """
+        Method for receiving messages from all other communities.
+        """
+        for other in self.others:
+            self.master.listen(for_what, from_whom = other)
+    
     def listen(self, for_what, from_whom):
         """
         Method for receiving messages from other communities and responding
@@ -160,7 +137,7 @@ class CommunityDistributed(simpactpurple.Community):
             #parse message and act            
             if msg == 'add_to_simulation': # primary to non-primary
                 agent = data
-                self.agents[agent.attributes["NAME"]] = agent
+                self.agents[agent.name] = agent
             elif msg == 'add_to_grid_queue': # primary to non-primary
                 agent = self.agents[data]
                 self.add_to_grid_queue(agent)
@@ -168,14 +145,14 @@ class CommunityDistributed(simpactpurple.Community):
                 agent_name = data
                 agent = self.agents[agent_name]
                 self.time_operator.remove(agent)
+                self.time_operator.replace(agent)
             elif msg == 'remove_from_grid_queue': # primary to non-primary
                 agent_name = data  # data is agent name here
                	agent = self.agents[agent_name]
                 agent_pipe = self.pipes[agent.grid_queue]
                 agent_pipe.send("remove")
-                agent_pipe.send(agent_name)
-                
-            elif msg == 'add_relationship':
+                agent_pipe.send(agent_name)                
+            elif msg == 'add_relationship':  # non-primary to primary
                 relationship = data  # data is relationship tuple here
                 agent1 = self.agents[relationship[0]]  # look up name
                 agent2 = self.agents[relationship[1]]
@@ -207,18 +184,18 @@ class CommunityDistributed(simpactpurple.Community):
             self.migration = False  # temp disable 'add' and 'remove' messages to MO
             #0.1 Remove some agents (migrate away)
             removals = self.comm.recv(source = 0)
-            #print self.rank,"  received removals:",[a.attributes["NAME"] for a in removals]
+            #print self.rank,"  received removals:",[a.name for a in removals]
             for removed in removals:
-                agent = self.agents[removed.attributes["NAME"]]
+                agent = self.agents[removed.name]
                 self.time_operator.remove(agent)
                 
             #0.2 Add some agents (migrate in)
             additions = self.comm.recv(source = 0)
-            #print self.rank,"  received additions:",[a.attributes["NAME"] for a in additions]
+            #print self.rank,"  received additions:",[a.name for a in additions]
             #iself.migration = False  # so 'add' message not sent to MO
             for agent in additions:
                 self.add_to_simulation(agent)
-                #print "    -",agent.attributes["NAME"],"in network:",agent in self.network
+                #print "    -",agent.name,"in network:",agent in self.network
             self.migration = True
                         
             
@@ -229,6 +206,9 @@ class CommunityDistributed(simpactpurple.Community):
             self.listen('migration updates', self.primary)
             
     def make_operators(self):
+        """
+        Make the distributed operators necessary for a distributed simulation.
+        """
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
         self.infection_operator = OperatorsDistributed.InfectionOperator(self)
         self.time_operator = OperatorsDistributed.TimeOperator(self)

@@ -4,7 +4,6 @@ The module for the GridQueue class and function for listening.
 import random
 import PriorityQueue  # lucio's implementation
 import numpy as np
-import sys
 
 def listen(gq, pipe):    
     """
@@ -14,8 +13,6 @@ def listen(gq, pipe):
     """
     while True:
         action = pipe.recv()
-        #print "    gq",gq.index,"action:",action
-        #sys.stdout.flush()
         if action == "recruit":
             pipe.send(gq.recruit())
         elif action == "enquire":
@@ -33,7 +30,6 @@ def listen(gq, pipe):
         elif action == "oldest":
             gq.oldest(pipe)            
         elif action == "terminate":
-            #print "TERMINATING. Agents:", [(agent.attributes["NAME"],gq.age_of(agent)) for hazard,agent in gq.agents.heap]
             break
         else:
             raise ValueError, "GridQueue received unknown action:" + action
@@ -43,7 +39,6 @@ class GridQueue():
     """
     A data structure for holding agents of similar age and sex.
     """
-
     def __init__(self, top, bottom, index):
         self.top = top
         self.bottom = bottom
@@ -83,7 +78,7 @@ class GridQueue():
         else:
             agent.last_match = self.time
             self.agents.push(agent.last_match,agent) 
-            return agent.attributes["NAME"]
+            return agent.name
 
     def enquire(self, suitor):
         """
@@ -91,11 +86,11 @@ class GridQueue():
         with *suitor*. Returns None if there are no agents, or none of the
         agents in the grid queue don't accept.
         """
-        #empty queue?
+        #1. empty queue?
         if self.agents.empty():
             return None
         
-        #Resort if dissimilar
+        #2. Resort if dissimilar from previous suitor
         if self.previous is None or self.previous.grid_queue != suitor.grid_queue:
             suitor_age = self.age_of(suitor)
             ma = (suitor_age + self.age()) / 2
@@ -110,31 +105,31 @@ class GridQueue():
                     self.agents.push(agent.last_match,agent)
                 else:
                     self.agents.push(np.inf, agent)
-                
         self.previous = suitor
 
-        #Update last_match and return an accepting agent
-        accept, match = self.agents.pop()
-        
+        #3. Update last_match and return an accepting agent
+        accept, match = self.agents.pop()        
         if accept >= np.inf:
             self.agents.push(np.inf, match)  # push back in
             return None
         
-        #suitor check
-        match_name = match.attributes["NAME"]
-        suitor_name = suitor.attributes["NAME"]
+        #3. 1 Check that suitor is not match
+        match_name = match.name
+        suitor_name = suitor.name
         if match_name == suitor_name:
-            if self.agents.length() <= 1:
+            if self.agents.length() <= 1:  # if there is no one else
                 self.agents.push(match.last_match, match)
                 return None
-            else:
-                #try to pop next in the queue
+            else:  # try to return the next in line
                 new_accept, new_match = self.agents.pop()
                 self.agents.push(accept, match)
+                if new_accept >= np.inf:
+                    self.agents.push(new_accept, new_match)
+                    return None                    
                 accept, match = new_accept, new_match
-                match_name = match.attributes["NAME"]        
+                match_name = match.name        
         
-        #finally, return match
+        #4. Finally, return match
         match.last_match = self.time
         self.agents.push(match.last_match, match)  # move from top position        
         return match_name
@@ -144,7 +139,7 @@ class GridQueue():
         Add *agent* to the priority queue.
         """
         #Verify that this agent isn't already in the queue
-        agent_name = agent.attributes["NAME"]
+        agent_name = agent.name
         if agent_name in self.names and self.names[agent_name]:
             return
 
@@ -163,27 +158,16 @@ class GridQueue():
             
     def oldest(self, pipe):
         """
-        Go through agents and remove those that are beyond the age limit. Keep
-        a count of how many are removed to send back to be replaced
+        Go through agents and send back to communitythose that are beyond the 
+        age limit (removing them along the way).
         """
         agents = list(self.agents.heap)
         for h, agent in agents:
             if self.age_of(agent) > self.max_age:
-                agent_name = agent.attributes["NAME"]
+                agent_name = agent.name
                 self.remove(agent_name)
                 pipe.send(agent_name)
         pipe.send('done')
-                
-    def contains(self, agent_name):
-        """
-        Returns whether this grid queue contains an agent with the name
-        *agent_name*.
-        """
-        if agent_name in self.names:
-            agent = self.names[agent_name]
-            return self.agents.contains(agent)        
-        else:
-            return False
         
     def accepts(self,agent):
         """
@@ -193,12 +177,13 @@ class GridQueue():
         
     def age(self):
         """
+        Returns the age of the grid queue.
         """
         return (self.time - self.middle)/52
         
     def age_of(self,agent):
         """
-        Returns the age of the *agent*
+        Returns the age of the *agent*.
         """
         return (self.time - agent.born)/52      
         
@@ -217,18 +202,6 @@ class GridQueue():
             mean_age = (agent1_age + agent2_age) / 2.0
             age_difference = agent2_age - agent1_age
             
-        #0
-        #return agent1.sex ^ agent2.sex
-
-        #1
-        #age_difference = abs(age_difference)
-        #AGE_DIFFERENCE_FACTOR =-0.2
-        #MEAN_AGE_FACTOR = -0.01  # smaller --> less likely
-        #BASELINE = 1
-        #h = (agent1.sex ^ agent2.sex)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
-        #return h
-        
-        #2
         pad = (1 - (2*agent1.sex))* self.preferred_age_difference  # correct for perspective
         top = abs(age_difference - (pad*self.preferred_age_difference_growth*mean_age) )
         h = np.exp(self.probability_multiplier * top ) ;
@@ -236,4 +209,4 @@ class GridQueue():
             
     #Functions for debuging
     def agents_in_queue(self):
-        return [str(a.attributes["NAME"]) for p,a in self.agents.heap]
+        return [str(a.name) for p,a in self.agents.heap]

@@ -90,7 +90,7 @@ class MigrationOperator:
             #parse message and act            
             if msg == 'add':
                 self.agents[from_whom].append(agent)
-                self.all_agents[agent.attributes["NAME"]] = agent
+                self.all_agents[agent.name] = agent
             elif msg == 'remove':
                 agent = self.all_agents[agent]  # convert name to known agent
                 agent.attributes["MIGRATION"].append((self.time, from_whom, 0))

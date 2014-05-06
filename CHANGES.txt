@@ -2,3 +2,4 @@ v0.1.0, 10-1-13 -- Initial release
 v0.1.1, 10-1-13 -- Documentation updates
 v0.1.2, 11-22-13 -- Scripts and modules for running on a cluster of nodes
 v0.1.3, 2-25-14 -- Scripts for Approximate Bayesian Computation added
+v1.0.0, 5-4-14 -- Final version to used for papers

@@ -4,10 +4,9 @@ from a Simpact object.
 """
 
 import numpy as np
-import numpy.random as random
 import networkx as nx
 import matplotlib
-import os 
+import os
 if os.popen("echo $DISPLAY").read().strip() == '':  # display not set
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -16,7 +15,7 @@ import matplotlib.pyplot as plt
 def age_mixing_data(s):
     """
     Generates a scatter plot of male and female ages for each relationship
-    formed. If *filename* is provided (string), the graph is saved to the 
+    formed. If *filename* is provided (string), the graph is saved to the
     file instead of displayed on the screen.
     """
     males = []
@@ -30,17 +29,16 @@ def age_mixing_data(s):
             female = r[1]
             male = r[0]
 
-        
         time_since_relationship = s.time - r[2]
         males.append(((s.age(male)*52.0) - time_since_relationship)/52.0)
         females.append(((s.age(female)*52.0) - time_since_relationship)/52.0)
 
     return np.array([males, females])
-        
-def age_mixing_graph(s, filename = None):
+
+def age_mixing_graph(s, filename=None):
     """
     Generates a scatter plot of male and female ages for each relationship
-    formed. If *filename* is provided (string), the graph is saved to the 
+    formed. If *filename* is provided (string), the graph is saved to the
     file instead of displayed on the screen.
     """
     males, females = age_mixing_data(s)
@@ -64,7 +62,7 @@ def age_mixing_heat_graph(s, grid = 10, filename = None):
     """
     Generates a heat map of male and female ages for each relationship
     formed. Finer or coarser grain grid can be made by changing *grid*.
-    If *filename* is provided (string), the graph is saved to the 
+    If *filename* is provided (string), the graph is saved to the
     file instead of displayed on the screen.
     """
     boxes = np.zeros((grid, grid))
@@ -372,7 +370,7 @@ def sexual_network_graph(s, layout = "spring", time = None, filename = None):
         if time and not (r[2] < time and time < r[3]):  # start < time < end
             continue
         g = (["M","F"][r[0].sex], ["M","F"][r[1].sex])  # grab agent sexes
-        G.add_edge(str(r[0].attributes["NAME"])+g[0], str(r[1].attributes["NAME"])+g[1])
+        G.add_edge(str(r[0].name)+g[0], str(r[1].name)+g[1])
 
     #get layout
     if layout == "spring":
@@ -508,10 +506,9 @@ def total_lifetime_partners(s, filename = None):
     If *filename* is provided (string), the graph is saved to the 
     file instead of displayed on the screen.
     """
-    
     boxes = np.zeros((20, 20))
     
-    #Go through relationships and add 1.0 to the appropriate box
+    #Go through relationships and add 1 to the appropriate box
     for agent in s.agents.values():
         age = int(s.age(agent) / s.BIN_SIZE)
         partners = min(19, len([r for r in s.relationships if r[0] is agent or r[1] is agent]))
@@ -630,7 +627,6 @@ def number_of_partners_data(s, year = None):
 def test_distribution(distribution, samplesize = 100):
     data = [distribution() for i in range(samplesize)]
     
-    fig = plt.figure()
     plt.hist(data, normed=True)
     plt.title("Test Distribution")
     plt.xlabel("Bins")
@@ -641,7 +637,7 @@ def network_metrics(s):
     print "Concurrency", concurrency(s)
     print "Partner Turnover Rate", partner_turnover_rate(s)
     print "Average Clustering", nx.algorithms.bipartite.average_clustering(s.network)
-    #print "Degree Assortivity", nx.degree_assortativity_coefficient(s.network)
-    #print "Average node connectivity", nx.average_node_connectivity(s.network)
+    print "Degree Assortivity", nx.degree_assortativity_coefficient(s.network)
+    print "Average node connectivity", nx.average_node_connectivity(s.network)
     
     

@@ -1,5 +1,5 @@
 """ 
-The main module a simulation of a community. 
+The main module for simulating HIV in a community.
 """
 
 import Operators
@@ -15,20 +15,22 @@ import sys
 class Agent():
     def __init__(self):
         """
-        all these variables are set in the make_population. Initialized here
-        as None to emphasis their existence
+        A class for holding the important information about agents. All 
+        variables are set in the make_population (they are initialized here
+        as None to emphasis their existence).
         """
         self.born = None
         self.sex = None
         self.dnp = None
-        self.grid_queue = None;
+        self.grid_queue = None
+        self.name = None
     
         self.time_of_infection = np.Inf 
         self.last_match = -np.Inf
         self.attributes = {}
         
     def __str__(self):
-        return "Name: " + str(self.attributes["NAME"])
+        return str(self.name)
 
 class Community():
     """
@@ -37,13 +39,12 @@ class Community():
     def __init__(self):
         #MODEL PARAMETERS
         self.NUMBER_OF_YEARS = 30
-        self.NUM_CPUS = 20
         
         #MODEL OPERATORS
         #hazard
-        self.preferred_age_difference = -0.1
-        self.probability_multiplier = -0.2
-        self.preferred_age_difference_growth = 0.1
+        self.PREFERRED_AGE_DIFFERENCE = -0.1
+        self.PROBABILITY_MULTIPLIER = -0.2
+        self.PREFERRED_AGE_DIFFERENCE_GROWTH = 0.1
         
         #relationship operator
         self.SEXES = 2
@@ -58,7 +59,7 @@ class Community():
         #infection operator
         self.INFECTIVITY = 0.01
         self.INTIIAL_PREVALENCE = 0.01
-        self.SEED_TIME = 0  # in years        
+        self.SEED_TIME = 20  # in weeks
 
         #time operator
         self.time = -1
@@ -78,23 +79,24 @@ class Community():
         Runs the mainloop of the simulation. Clear all data structures, make
         agents, and iterate through time steps.
         """
+        #pre-process
         start = Time.time()  # for timing simulation
         self.start()  # initialize data structures
         
         #mainloop
         self.update_recruiting(self.RECRUIT_INITIAL)
         for t in range(self.RECRUIT_WARM_UP):
-            #print "---------time",t,"---------------"
             self.time = t
             self.step()
         
         self.update_recruiting(self.RECRUIT_RATE)
         for t in range(self.RECRUIT_WARM_UP, int(self.NUMBER_OF_YEARS*52)):
-            #print "---------time",t,"---------------"
             self.time = t
             self.step()
         
-        self.cleanup()  # send terminate signal
+        #post-process / clean-up
+        for pipe in self.pipes.values():
+            pipe.send("terminate")
 
         #print timing if desired:
         end = Time.time()
@@ -126,19 +128,26 @@ class Community():
         self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
     
     def make_queues(self):
+        """
+        Make all the initial queues.
+        """
         for age in range(self.MIN_AGE, self.MAX_AGE+self.BIN_SIZE, self.BIN_SIZE):
             self.make_n_queues(self.SEXES)
                 
     def make_n_queues(self, n):
+        """
+        Make *n* new queues based on the previously made queues. This method is
+        seperate from "make_queues" so that the time operator can make new 
+        queues as the oldest queues are retired.
+        """
         #make the grid queues
         for i in range(n):
-            #print "  new grid queue: (",self.next_bottom,",",self.next_top,") sex",i,"index",self.grid_queue_index
             gq = GridQueue.GridQueue(self.next_top, self.next_bottom, self.grid_queue_index)
             gq.max_age = self.MAX_AGE
             gq.sex = i  # not used
-            gq.preferred_age_difference = self.preferred_age_difference
-            gq.probability_multiplier = self.probability_multiplier
-            gq.preferred_age_difference_growth = self.preferred_age_difference_growth
+            gq.preferred_age_difference = self.PREFERRED_AGE_DIFFERENCE
+            gq.probability_multiplier = self.PROBABILITY_MULTIPLIER
+            gq.preferred_age_difference_growth = self.PREFERRED_AGE_DIFFERENCE_GROWTH
             self.grid_queues[gq.index] = gq
             self.grid_queue_index+=1
                                     
@@ -164,21 +173,20 @@ class Community():
     def make_population(self, size):
         """
         Creates *size* agents with age, sex, and desired number of partners
-        (DNP) dictated by *born*, *sex*, and *dnp* (functions). If these 
-        these are omitted, default distributions will be used.
-
-        After an agent receives a name, age, sex, and DNP, he or she is added
-        to the network graph and added to a grid queue.
+        (DNP) dictated by *born*, *sex*, and *dnp* (distributions set at 
+        initialization). If these these are omitted, default distributions will
+        be used. After an agent receives a name, age, sex, and DNP, he or she 
+        is added to the network graph and added to a grid queue.
         """        
         for i in range(size):
             #make agent and add some attributes
             a = Agent()
-            a.attributes["NAME"] = len(self.agents)  # not i b/c replacement
             a.attributes["TIME_ADDED"] = self.time
             a.attributes["TIME_REMOVED"] = np.Inf
             a.born = self.BORN()
             a.sex = self.SEX()
             a.dnp = self.DNP()
+            a.name = len(self.agents)  # not i b/c replacement
             self.add_to_simulation(a)
             
     def add_to_simulation(self,agent):
@@ -187,7 +195,7 @@ class Community():
         queue. This is seperate from the make_population method so that
         other objects can add agents without make_population.
         """
-        self.agents[agent.attributes["NAME"]] = agent
+        self.agents[agent.name] = agent
         self.network.add_node(agent)
         
         #agent given a grid queue at initialization
@@ -197,27 +205,13 @@ class Community():
         
     def add_to_grid_queue(self, agent):
         """
-        Find the appropriate grid queue for agent. Called by 
-           ##No longer true: Time Operator - when agent graduates to the next grid queue <-- this is no longer true
-           1. Time Operator - when relationship with removed is dissolved
-           2. Relationship Operator - a relationship is dissolved
-           3. Community - in make_population in the mainloop
+        Add an agent back to their grid queue. Called when (1) When agent is 
+        initialized (called by Community) and (2) When one of the agent's 
+        relationship is dissolved (called by the Time Operator).           
         """
-        #grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-        #agent.grid_queue = grid_queue.index
-        #try:
         self.pipes[agent.grid_queue].send("add")
         self.pipes[agent.grid_queue].send(agent)
-        #print "  added",agent,"to",agent.grid_queue
-#        except KeyError:  # agent's grid_queue terminated
-#            #only remove agent if (s)he has no other relationships
-#            if self.network.degree(agent)<=0:
-#                print "  KE: removing agent",agent
-#                self.time_operator.remove(agent)
-#                self.time_operator.replace(agent)
-#            else:
-#                print "  KE: waiting to remove agent",agent
-#    
+        
     def update_recruiting(self, rate):
         """
         Function called after initial warm up period -- updates the value for
@@ -229,27 +223,15 @@ class Community():
         """
         Take a single time step (one week) in the simulation. 
         """
-        #print "====",self.time,"===="
         #1. Time progresses
-        #print "==time operator"
         self.time_operator.step()
         
-        #print "==rela operator"
         #2. Form and dissolve relationships"
         self.relationship_operator.step()
 
-        #print "==infec operator"  
         #3. HIV transmission
         self.infection_operator.step()
         
-    def cleanup(self):
-        """
-        Send a 'terminate' signal to all of the Grid Queues. Update end values
-        in relationships (to account for deaths). 
-        """
-        for pipe in self.pipes.values():
-            pipe.send("terminate")
-
     def age(self, agent):
         """
         Finds the age of *agent*
@@ -271,35 +253,10 @@ class Community():
             mean_age = (agent1_age + agent2_age) / 2.0
             age_difference = agent2_age - agent1_age
             
-        #0
-        #return agent1.sex ^ agent2.sex
-
-        #1
-        #age_difference = abs(age_difference)
-        #AGE_DIFFERENCE_FACTOR =-0.2
-        #MEAN_AGE_FACTOR = -0.01  # smaller --> less likely
-        #BASELINE = 1
-        #h = (agent1.sex ^ agent2.sex)*BASELINE*np.exp(AGE_DIFFERENCE_FACTOR*age_difference+MEAN_AGE_FACTOR*mean_age) 
-        #return h
-
-        #2
-        pad = (1 - (2*agent1.sex))* self.preferred_age_difference  # correct for perspective
-        top = abs(age_difference - (pad*self.preferred_age_difference_growth*mean_age) )
-        h = np.exp(self.probability_multiplier * top ) ;
+        pad = (1 - (2*agent1.sex))* self.PREFERRED_AGE_DIFFERENCE  # correct for perspective
+        top = abs(age_difference - (pad*self.PREFERRED_AGE_DIFFERENCE_GROWTH*mean_age) )
+        h = np.exp(self.PROBABILITY_MULTIPLIER * top ) ;
         return (agent1.sex ^ agent2.sex)*h
-
-        #3
-        ##preferred_age_difference = (1 - (2 * agent1.sex)) * -0.5
-        ##probability_multiplier = -0.1
-        ##preferred_age_difference_growth = 0.9
-        ##age_difference_dispersion = -0.05
-        ##top = abs(age_difference - (preferred_age_difference * preferred_age_difference_growth * mean_age) )
-        ##bottom = preferred_age_difference*mean_age*age_difference_dispersion
-        ##h = np.exp(probability_multiplier * (top/bottom))
-        ##return (agent1.likes(agent2))*h
-
-        #4
-        #return int(not (agent1.sex ^ agent2.sex))  # true if same sex
 
     def debug(self):
         print "======================", self.time, "======================="
@@ -314,7 +271,7 @@ class Community():
             pipe = self.pipes[gq.index]
             pipe.send("queue")
             agents = pipe.recv()
-            agents = [str(a.attributes["NAME"]) for p,a in agents.heap]
+            agents = [str(a.name) for p,a in agents.heap]
             
             line = str(gq.index) + "\t|" + str(gq.sex) + " " + \
                 str(gq.age()) + " " + str(len(agents)) + " || " + \

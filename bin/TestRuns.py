@@ -7,8 +7,6 @@ Created on Sun Sep 15 13:56:56 2013
 A test script for running a single community on a signal node
 with parallel grid queues. 
 
-approximate bayesian computation -- validation. when the model is too complicated for standard bayesian approach
-
 """
 
 import simpactpurple
@@ -16,9 +14,8 @@ import simpactpurple.GraphsAndData as gad
 
 if __name__ == '__main__':
     s = simpactpurple.Community()
-    s.INITIAL_POPULATION = 100
-    s.probability_multiplier = -0.2
-    s.NUMBER_OF_YEARS = 1
+    s.INITIAL_POPULATION = 1000
+    s.NUMBER_OF_YEARS = 30
     s.run(timing = True)
 
     #GRAPH VERIFICATION
