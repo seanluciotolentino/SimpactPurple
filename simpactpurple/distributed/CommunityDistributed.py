@@ -120,7 +120,7 @@ class CommunityDistributed(simpactpurple.Community):
         Method for receiving messages from all other communities.
         """
         for other in self.others:
-            self.master.listen(for_what, from_whom = other)
+            self.listen(for_what, from_whom = other)
     
     def listen(self, for_what, from_whom):
         """

@@ -37,3 +37,4 @@ if comm.Get_rank() == 0:
     #GraphsAndData.age_mixing_graph(c, filename='agemixing_distributed.png')
 	#GraphsAndData.relationship_durations(c, filename='durations_distributed.png')
 	#GraphsAndData.gap_lengths(c, filename='gaplengths_distributed.png')
+    print len(c.network.edges())
