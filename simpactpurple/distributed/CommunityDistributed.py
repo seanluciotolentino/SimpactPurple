@@ -3,6 +3,7 @@ import numpy as np
 import simpactpurple
 import OperatorsDistributed
 import time as Time
+import multiprocessing
 
 class CommunityDistributed(simpactpurple.Community):
     """
@@ -19,8 +20,40 @@ class CommunityDistributed(simpactpurple.Community):
         self.others = others
         self.size = len(self.others) + 1
         self.migration = migration
+        self.distance = np.ones((self.size,self.size))
         
+        #print "hello from rank",self.rank, "my primary is", self.primary
         #all other parameters inherited
+    
+    def make_n_queues(self, n):
+        """
+        GRID QUEUES NEED TO HAVE DISTANCE FUNCTION FOR INTERMIXING MODEL
+        """
+        #make the grid queues
+        for i in range(n):
+            #v===CHANGED===v
+            gq = simpactpurple.GridQueue.GridQueue(self.next_top, self.next_bottom, self.grid_queue_index)
+            gq.distance = self.distance            
+            #^===CHANGED===^
+            gq.max_age = self.MAX_AGE
+            gq.sex = i  # not used
+            gq.preferred_age_difference = self.PREFERRED_AGE_DIFFERENCE
+            gq.probability_multiplier = self.PROBABILITY_MULTIPLIER
+            gq.preferred_age_difference_growth = self.PREFERRED_AGE_DIFFERENCE_GROWTH
+            self.grid_queues[gq.index] = gq
+            self.grid_queue_index+=1
+                                    
+            #start a new process for it
+            pipe_top, pipe_bottom = multiprocessing.Pipe()
+            #v===CHANGED===v
+            p = multiprocessing.Process(target=simpactpurple.GridQueue.listen,args=(gq, pipe_bottom))
+            #^===CHANGED===^
+            p.start()
+            self.pipes[gq.index] = pipe_top
+        
+        #increment for next grid queue
+        self.next_top += self.BIN_SIZE*52
+        self.next_bottom += self.BIN_SIZE*52
         
     def broadcast(self, message):
         """
@@ -148,10 +181,10 @@ class CommunityDistributed(simpactpurple.Community):
                 self.time_operator.replace(agent)
             elif msg == 'remove_from_grid_queue': # primary to non-primary
                 agent_name = data  # data is agent name here
-               	agent = self.agents[agent_name]
+                agent = self.agents[agent_name]                
                 agent_pipe = self.pipes[agent.grid_queue]
                 agent_pipe.send("remove")
-                agent_pipe.send(agent_name)                
+                agent_pipe.send(agent_name)
             elif msg == 'add_relationship':  # non-primary to primary
                 relationship = data  # data is relationship tuple here
                 agent1 = self.agents[relationship[0]]  # look up name
@@ -187,12 +220,17 @@ class CommunityDistributed(simpactpurple.Community):
             #print self.rank,"  received removals:",[a.name for a in removals]
             for removed in removals:
                 agent = self.agents[removed.name]
+                #send remove to grid queue in addition to time op remove
+                if agent.partition is not self.rank:
+                    self.comm.send(('remove_from_grid_queue',agent.name), dest = agent.partition)
+                else:
+                    self.pipes[agent.grid_queue].send("remove")
+                    self.pipes[agent.grid_queue].send(agent.name)
                 self.time_operator.remove(agent)
                 
             #0.2 Add some agents (migrate in)
             additions = self.comm.recv(source = 0)
             #print self.rank,"  received additions:",[a.name for a in additions]
-            #iself.migration = False  # so 'add' message not sent to MO
             for agent in additions:
                 self.add_to_simulation(agent)
                 #print "    -",agent.name,"in network:",agent in self.network
@@ -212,3 +250,7 @@ class CommunityDistributed(simpactpurple.Community):
         self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
         self.infection_operator = OperatorsDistributed.InfectionOperator(self)
         self.time_operator = OperatorsDistributed.TimeOperator(self)
+        
+    def hazard(self, agent1, agent2, **attributes):
+        cm = self.distance[agent1.partition][agent2.partition]
+        return cm * simpactpurple.Community.hazard(self, agent1, agent2, **attributes)
