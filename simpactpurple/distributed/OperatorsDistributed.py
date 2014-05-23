@@ -48,13 +48,21 @@ class RelationshipOperator(Operators.RelationshipOperator):
         agent_name = self.master.pipes[gq].recv()
         if agent_name is not None:
             agent = self.master.agents[agent_name]
-            #send fraction of agents to other communitiy
-            if np.random.random() < 1.0/self.master.size:
-                self.master.main_queue.push(gq, agent)  # keep agent
+            #send fraction of agents to other community
+            #if np.random.random() < 1.0/self.master.size:
+            #    self.master.main_queue.push(gq, agent)  # keep agent
+            #else:
+            #    #other = self.master.others[random.randint(len(self.master.others))]
+            #    other = random.choice(self.master.others)
+            #    self.master.comm.send(('push',agent),dest=other)
+
+            #send fraction based on transition matrix
+            rand = np.random.random()
+            rank = [int(v) for v in rand < self.master.transition[:,self.master.rank]].index(1)
+            if rank == self.master.rank:
+                self.master.main_queue.push(gq, agent)
             else:
-                #other = self.master.others[random.randint(len(self.master.others))]
-                other = random.choice(self.master.others)
-                self.master.comm.send(('push',agent),dest=other)
+                self.master.comm.send(('push',agent),dest=rank)
     
     def match_enquire(self):
         """

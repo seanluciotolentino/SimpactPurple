@@ -205,15 +205,6 @@ class GridQueue():
         pad = (1 - (2*agent1.sex))* self.preferred_age_difference  # correct for perspective
         top = abs(age_difference - (pad*self.preferred_age_difference_growth*mean_age) )
         h = np.exp(self.probability_multiplier * top ) ;
-        
-        #FOR INTERMIXING EXPLORATION:
-        cm = 1
-        try:
-            cm = self.distance[agent1.partition][agent2.partition]
-            return cm*(agent1.sex ^ agent2.sex)*h
-        except AttributeError:
-            print "ATTRIBUTE ERROR IN GRID QUEUE HAZARD CALCULATION"
-            pass  # must have forgotten to remove this stuff
         return (agent1.sex ^ agent2.sex)*h
             
     #Functions for debuging
