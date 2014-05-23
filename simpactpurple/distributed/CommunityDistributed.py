@@ -3,6 +3,7 @@ import numpy as np
 import simpactpurple
 import OperatorsDistributed
 import time as Time
+import multiprocessing
 
 class CommunityDistributed(simpactpurple.Community):
     """
@@ -19,9 +20,11 @@ class CommunityDistributed(simpactpurple.Community):
         self.others = others
         self.size = len(self.others) + 1
         self.migration = migration
+        self.transition = np.ones((self.size,self.size))/self.size
         
+        #print "hello from rank",self.rank, "my primary is", self.primary
         #all other parameters inherited
-        
+    
     def broadcast(self, message):
         """
         A function which sends message to all nodes. This is necessary b/c
@@ -120,7 +123,7 @@ class CommunityDistributed(simpactpurple.Community):
         Method for receiving messages from all other communities.
         """
         for other in self.others:
-            self.master.listen(for_what, from_whom = other)
+            self.listen(for_what, from_whom = other)
     
     def listen(self, for_what, from_whom):
         """
@@ -148,10 +151,10 @@ class CommunityDistributed(simpactpurple.Community):
                 self.time_operator.replace(agent)
             elif msg == 'remove_from_grid_queue': # primary to non-primary
                 agent_name = data  # data is agent name here
-               	agent = self.agents[agent_name]
+                agent = self.agents[agent_name]                
                 agent_pipe = self.pipes[agent.grid_queue]
                 agent_pipe.send("remove")
-                agent_pipe.send(agent_name)                
+                agent_pipe.send(agent_name)
             elif msg == 'add_relationship':  # non-primary to primary
                 relationship = data  # data is relationship tuple here
                 agent1 = self.agents[relationship[0]]  # look up name
@@ -187,12 +190,17 @@ class CommunityDistributed(simpactpurple.Community):
             #print self.rank,"  received removals:",[a.name for a in removals]
             for removed in removals:
                 agent = self.agents[removed.name]
+                #send remove to grid queue in addition to time op remove
+                if agent.partition is not self.rank:
+                    self.comm.send(('remove_from_grid_queue',agent.name), dest = agent.partition)
+                else:
+                    self.pipes[agent.grid_queue].send("remove")
+                    self.pipes[agent.grid_queue].send(agent.name)
                 self.time_operator.remove(agent)
                 
             #0.2 Add some agents (migrate in)
             additions = self.comm.recv(source = 0)
             #print self.rank,"  received additions:",[a.name for a in additions]
-            #iself.migration = False  # so 'add' message not sent to MO
             for agent in additions:
                 self.add_to_simulation(agent)
                 #print "    -",agent.name,"in network:",agent in self.network

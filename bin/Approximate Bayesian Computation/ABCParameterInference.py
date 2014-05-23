@@ -69,7 +69,7 @@ if __name__ == '__main__':
     #%% 0. Setup 
     # Every prior distribution is a uniform and given by a bottom and top
     prior = {
-                1: lambda: uni(-0.01, -0.3),   # probability multiplier
+                1: lambda: uni(-0.01, -0.5),   # probability multiplier
                 2: lambda: uni(-0.01, -0.5),   # preferred age difference
                 3: lambda: uni(0.01, 2),       # preferred age difference growth
                 

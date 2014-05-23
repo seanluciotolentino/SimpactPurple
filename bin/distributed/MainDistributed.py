@@ -24,10 +24,11 @@ name = MPI.Get_processor_name()
 comm = MPI.COMM_WORLD
 others = range(comm.Get_size())
 others.remove(comm.Get_rank())
-c = CommunityDistributed.CommunityDistributed(comm, 0, others)
-c.INITIAL_POPULATION = int(sys.argv[1])
-c.NUMBER_OF_YEARS = float(sys.argv[2])
-c.run()
+s = CommunityDistributed.CommunityDistributed(comm, 0, others)
+s.INITIAL_POPULATION = int(sys.argv[1])
+s.NUMBER_OF_YEARS = float(sys.argv[2])
+s.set_distance_function('circular', min_ = 0.1)
+s.run()
 
 if comm.Get_rank() == 0:
     #GraphsAndData.formed_relations_graph(c,filename='formed_relations_distributed.png')
@@ -37,3 +38,6 @@ if comm.Get_rank() == 0:
     #GraphsAndData.age_mixing_graph(c, filename='agemixing_distributed.png')
 	#GraphsAndData.relationship_durations(c, filename='durations_distributed.png')
 	#GraphsAndData.gap_lengths(c, filename='gaplengths_distributed.png')
+    GraphsAndData.formed_relations_graph(s, filename='2formedrelations.png')
+    print s.infection_operator.number_infected
+    #print len(c.network.edges())

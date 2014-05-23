@@ -3,7 +3,8 @@ Module for operators used in distributed simulation (communities is made up of
 smaller subcommunities).
 """
 import Queue
-import numpy.random as random
+import numpy.random
+import random
 import numpy as np
 import simpactpurple.Operators as Operators
 
@@ -41,18 +42,27 @@ class RelationshipOperator(Operators.RelationshipOperator):
         individuals are randomly selected to enter this main queue or the
         main queue of another community.
         """
-        gq = self.master.grid_queues.keys()[random.randint(len(self.master.grid_queues))]
+        #gq = self.master.grid_queues.keys()[random.randint(len(self.master.grid_queues))]
+        gq = random.choice(self.master.grid_queues.keys())
         self.master.pipes[gq].send("recruit")
         agent_name = self.master.pipes[gq].recv()
         if agent_name is not None:
             agent = self.master.agents[agent_name]
-            
-            #send fraction of agents to other communitiy
-            if random.random() < 1.0/self.master.size:
-                self.master.main_queue.push(gq, agent)  # keep agent
+            #send fraction of agents to other community
+            #if np.random.random() < 1.0/self.master.size:
+            #    self.master.main_queue.push(gq, agent)  # keep agent
+            #else:
+            #    #other = self.master.others[random.randint(len(self.master.others))]
+            #    other = random.choice(self.master.others)
+            #    self.master.comm.send(('push',agent),dest=other)
+
+            #send fraction based on transition matrix
+            rand = np.random.random()
+            rank = [int(v) for v in rand < self.master.transition[:,self.master.rank]].index(1)
+            if rank == self.master.rank:
+                self.master.main_queue.push(gq, agent)
             else:
-                other = self.master.others[random.randint(len(self.master.others))]
-                self.master.comm.send(('push',agent),dest=other)
+                self.master.comm.send(('push',agent),dest=rank)
     
     def match_enquire(self):
         """
@@ -86,7 +96,7 @@ class RelationshipOperator(Operators.RelationshipOperator):
         while matches:
             match = matches.pop()
             hazard = self.master.hazard(suitor, match)
-            r = random.random()
+            r = np.random.random()
             decision = int(r < hazard)
             pq.put((-decision, match))
         
@@ -120,13 +130,12 @@ class RelationshipOperator(Operators.RelationshipOperator):
         
         #remove from grid queue if necessary
         for agent in [agent1, agent2]:
-            agent_name = agent.name
             if self.master.network.degree(agent) >= agent.dnp:
                 if agent.partition is not self.master.rank:
-                    self.master.comm.send(('remove_from_grid_queue',agent_name), dest = agent.partition)
+                    self.master.comm.send(('remove_from_grid_queue',agent.name), dest = agent.partition)
                 else:
                     self.master.pipes[agent.grid_queue].send("remove")
-                    self.master.pipes[agent.grid_queue].send(agent_name)
+                    self.master.pipes[agent.grid_queue].send(agent.name)
 
 class TimeOperator(Operators.TimeOperator):
     """
@@ -152,7 +161,13 @@ class TimeOperator(Operators.TimeOperator):
         if self.master.is_primary:
             # sends agents back to correct grid queues
             for r in self.master.relationships_ending_at[self.master.time]:
-                self.master.relationship_operator.dissolve_relationship(r[0], r[1])
+                try:
+                    self.master.relationship_operator.dissolve_relationship(r[0], r[1])
+                except:
+                    if r[0] in self.master.network:
+                        self.master.add_to_grid_queue(r[0])
+                    elif r[1] in self.master.network:
+                        self.master.add_to_grid_queue(r[1])
             self.master.broadcast(('done','updating relationships'))
         else:
             # recv agents and add to right grid queue
@@ -186,26 +201,27 @@ class TimeOperator(Operators.TimeOperator):
             
         #3 Listen for updates from others
         if self.master.is_primary:
-            for other in self.master.others:
-                self.master.listen('oldest removals',from_whom = other)
+            self.master.listen_all('oldest removals')
         else:
-            self.master.comm.send(('done','removing oldest'))
+            self.master.comm.send(('done','removing oldest'), dest = self.master.primary)
             
                 
     def remove(self, agent):
         """
         Function for removing agents from the distributed simulation.
         """
+        #Update migration variables
+        if self.master.migration:
+            agent.attributes["MIGRATION"].append((self.master.time, self.master.rank, 0))
+            self.master.comm.send(('remove',agent.name), dest = 0)
+        #essential removes            
         agent.grid_queue = None
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
         if agent.time_of_infection < np.inf:
             self.master.infection_operator.infected_agents.remove(agent)
         
-        #Update migration variables
-        if self.master.migration:
-            agent.attributes["MIGRATION"].append((self.master.time, self.master.rank, 0))
-            self.master.comm.send(('remove',agent.name), dest = 0)
+
         
 class InfectionOperator(Operators.InfectionOperator):
     """
@@ -215,6 +231,7 @@ class InfectionOperator(Operators.InfectionOperator):
     def __init__(self, master):
         self.master = master
         self.infected_agents = []
+        self.number_infected = []
 
     def step(self):
         """
@@ -224,17 +241,17 @@ class InfectionOperator(Operators.InfectionOperator):
         """
         if not self.master.is_primary:
             return
-            
+        self.number_infected.append(len(self.infected_agents))
         #Go through edges and flip coin for infections
         now = self.master.time
         for agent in self.infected_agents:
             relationships = self.master.network.edges(agent)
             for r in relationships:
-                if (r[0].time_of_infection < now and r[1].time_of_infection > now) and random.random() < self.master.INFECTIVITY:
+                if (r[0].time_of_infection < now and r[1].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     self.infected_agents.append(r[1])
                     r[1].time_of_infection = now
                     continue
-                if (r[1].time_of_infection < now and r[0].time_of_infection > now) and random.random() < self.master.INFECTIVITY:
+                if (r[1].time_of_infection < now and r[0].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     self.infected_agents.append(r[0])
                     r[0].time_of_infection = now
 
@@ -245,11 +262,13 @@ class InfectionOperator(Operators.InfectionOperator):
         if not self.master.is_primary:
             return
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
-        agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
+        #agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
+        agent = random.choice(self.master.agents.values())
         for i in range(infections):
-            while agent in self.infected_agents:
-                agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
-                #agent = random.choice(self.master.agents.values())
-            agent.time_of_infection = seed_time * 52
+            #while agent in self.infected_agents:  # avoid duplicates
+            while agent in self.infected_agents or agent.partition != self.master.primary:  # avoid duplicates and seed in primary
+                #agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
+                agent = random.choice(self.master.agents.values())
+            agent.time_of_infection = seed_time
             self.infected_agents.append(agent)
 

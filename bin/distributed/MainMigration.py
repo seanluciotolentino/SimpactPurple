@@ -15,8 +15,6 @@ import simpactpurple.distributed.MigrationOperator as MigrationOperator
 import sys
 import simpactpurple.GraphsAndData as GraphsAndData
 
-print "hello from", MPI.Get_processor_name(),"rank",MPI.COMM_WORLD.Get_rank()
-
 #MPI variables
 name = MPI.Get_processor_name()
 comm = MPI.COMM_WORLD
@@ -42,14 +40,16 @@ if rank == 0: #Migration Operator
     mo.run()
 else:
     primary, others = comm.recv(source = 0)
-    c = CommunityDistributed.CommunityDistributed(comm, primary, others, migration = True)
-    c.INITIAL_POPULATION = pop
-    c.NUMBER_OF_YEARS = time
-    c.run()
+    s = CommunityDistributed.CommunityDistributed(comm, primary, others, migration = True)
+    s.INITIAL_POPULATION = pop
+    s.NUMBER_OF_YEARS = time
+    s.community_multipier = 0.2
+    s.run()
     
-    if c.is_primary:
-    	GraphsAndData.formed_relations_graph(c,filename='formed_relations'+str(c.rank)+'.png')
-    	GraphsAndData.demographics_graph(c,filename='demographics'+str(c.rank)+'.png')
-    	GraphsAndData.prevalence_graph(c,filename='prevalence'+str(c.rank)+'.png')
+    if comm.Get_rank() == 1:
+        GraphsAndData.formed_relations_graph(s, filename='3formedrelations.png')
+        print s.infection_operator.number_infected
+#    	GraphsAndData.formed_relations_graph(c,filename='formed_relations'+str(c.rank)+'.png')
+#    	GraphsAndData.demographics_graph(c,filename='demographics'+str(c.rank)+'.png')
+#    	GraphsAndData.prevalence_graph(c,filename='prevalence'+str(c.rank)+'.png')
 
-print "exit"
