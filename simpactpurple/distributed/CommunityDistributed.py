@@ -20,10 +20,17 @@ class CommunityDistributed(simpactpurple.Community):
         self.others = others
         self.size = len(self.others) + 1
         self.migration = migration
-        self.transition = np.ones((self.size,self.size))/self.size
+        self.transition_probabilities = np.ones((self.size,self.size))/self.size
         
         #print "hello from rank",self.rank, "my primary is", self.primary
         #all other parameters inherited
+		
+	def start(self):
+        """
+        Initialize the transition matrix based on transition probabilities.
+        """
+        self.transition = np.cumsum(self.transition_probabilities, axis=0)
+        simpactpurple.Community.start(self)
     
     def broadcast(self, message):
         """
