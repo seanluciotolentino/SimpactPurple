@@ -86,16 +86,16 @@ if comm.Get_rank() == 0:
     on_node_relations = len([e for e in s.network.edges() if e[0].partition == 0 and e[1].partition == 0])
     off_node_relations = len([e for e in s.network.edges() if e[0].partition > 0 and e[1].partition > 0])
     one_infected = len([a for a in s.infection_operator.infected_agents if a.partition == 0])
-	all_infected = len(s.infection_operator.infected_agents)
+    all_infected = len(s.infection_operator.infected_agents)
     print json.dumps( {"on_node_relationships":on_node_relations,
                        "off_node_relationships":off_node_relations,
-					   "inter_node_relationships":len(s.network.edges())-on_node_relations-off_node_relations,
+                       "inter_node_relationships":len(s.network.edges())-on_node_relations-off_node_relations,
                        "total_relationships":len(s.network.edges()),
                        
-					   "one_infected":one_infected,
-					   "all_infected":all_infected,
+                       "one_infected":one_infected,
+                       "all_infected":all_infected,
                        
-					   "average_attenuation":non_diagonal_average(attenuation),
-					   "total_attenuation":np.sum(attenuation) - s.size,
-					   "inter_community_probability":inter_community_probability(probabilities, 0)
+                       "average_attenuation":non_diagonal_average(attenuation),
+                       "total_attenuation":np.sum(attenuation) - s.size,
+                       "inter_community_probability":inter_community_probability(probabilities, 0)
                         })

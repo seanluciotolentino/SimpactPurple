@@ -1,4 +1,4 @@
-	# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on Wed May 14 11:38:20 2014
 
@@ -36,9 +36,9 @@ if os.popen("echo $DISPLAY").read().strip() == '':  # display not set (running o
         f = open('InterMixingExploration.csv','w')
         f.write('#population,distance multiplier,number communities,')  # input
         f.write('on node relations, off node relations, inter node relations, total relationships,')
-		f.write('one infected, total infected,')
-		f.write('average attenuation, total attenuation, probability of intercommunity relationship,')
-		f.write('total_time\n')
+	f.write('one infected, total infected,')
+        f.write('average attenuation, total attenuation, probability of intercommunity relationship,')
+        f.write('total_time\n')
 		
         f.write('#0,1,2,3,4,5,6,7,8,9,10,11,12\n')
         
@@ -51,11 +51,11 @@ if os.popen("echo $DISPLAY").read().strip() == '':  # display not set (running o
         
         #run the simulation
         print i, "running nodes",n,"min_",mult,"==>",
-		start = time.time()
+        start = time.time()
         output = os.popen('mpiexec -n {0} -host v1,v2,v3,v4,v5 python\
             bin/distributed/MainInterMixing.py {1} {2} {3}'.format(n, pop, years, mult))\
             .read().strip()
-		total_time = time.time() - start
+        total_time = time.time() - start
         output = json.loads(output)
         print output['all_infected']
         
@@ -63,21 +63,21 @@ if os.popen("echo $DISPLAY").read().strip() == '':  # display not set (running o
         f.write(",".join(map(str,(pop, mult, n)))+",")  # write input parameters
         f.write(",".join(map(str,(output['on_node_relationships'], # write output
                                   output['off_node_relationships'],
-								  output['inter_node_relationships'],
+                                  output['inter_node_relationships'],
                                   output['total_relationships'],
 								  
                                   output['one_infected'], 
-								  output['all_infected'],
+                                  output['all_infected'],
 								  
                                   output['average_attenuation'],
                                   output['total_attenuation'],
-								  output['inter_community_probability'],
+                                  output['inter_community_probability'],
 								  
-								  total_time,
+                                  total_time,
                                   )))+'\n')
     f.close()
 else:  # running on slim
-	#load data:
+    #load data:
     print "making graphs..."
     plt.close('all')
     #data = np.loadtxt('C:\Users\Lucio\Desktop\SimpactPurple\InterMixingExploration.csv', delimiter=",")
