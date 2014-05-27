@@ -27,7 +27,6 @@ others.remove(comm.Get_rank())
 s = CommunityDistributed.CommunityDistributed(comm, 0, others)
 s.INITIAL_POPULATION = int(sys.argv[1])
 s.NUMBER_OF_YEARS = float(sys.argv[2])
-s.set_distance_function('circular', min_ = 0.1)
 s.run()
 
 if comm.Get_rank() == 0:
@@ -38,6 +37,6 @@ if comm.Get_rank() == 0:
     #GraphsAndData.age_mixing_graph(c, filename='agemixing_distributed.png')
 	#GraphsAndData.relationship_durations(c, filename='durations_distributed.png')
 	#GraphsAndData.gap_lengths(c, filename='gaplengths_distributed.png')
-    GraphsAndData.formed_relations_graph(s, filename='2formedrelations.png')
+    #GraphsAndData.formed_relations_graph(s, filename='2formedrelations.png')
     print s.infection_operator.number_infected
     #print len(c.network.edges())
