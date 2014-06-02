@@ -24,8 +24,9 @@ class MigrationOperator:
         self.additions = {t:{1:[],4:[]} for t in range(1+int(self.NUMBER_OF_YEARS*52))}
         
         #Migration operator parameters
-        self.migration = {1:{'num_communities':3,'proportion':0.2,'time_away':25},
-                          4:{'num_communities':3,'proportion':0.1,'time_away':5}}
+        self.migration = {1:{'num_communities':1,'proportion':0.6,'time_here':2},
+                          2:{'num_communities':2,'proportion':0,'time_here':4},
+                          4:{'num_communities':2,'proportion':0,'time_here':12}},
         self.time_home = 2
         self.max_weeks = (65*52)+1  # for efficiently knowing the end of an agents life
         
@@ -54,33 +55,33 @@ class MigrationOperator:
         #mainloop
         for t in range(int(self.NUMBER_OF_YEARS*52)):
             #basic simulation
-            #print "**MO time",t
+            print "**MO time",t
             self.time = t
             self.listen_all('community updates')
 
             #perform migration steps
             for source in self.migration:
-                #print "  removed from",source,[a.name for a in self.removals[t][source]]
+                print "  removed from",source,[a.name for a in self.removals[t][source]]
                 self.comm.send(self.removals[t][source], dest = source)
             for destination in self.migration:
-                #print "  added to",destination,[a.name for a in self.additions[t][destination]]
+                print "  added to",destination,[a.name for a in self.additions[t][destination]]
                 self.comm.send(self.additions[t][destination], dest = destination)
-            #print 
+            print 
             #bookkeeping
             for source, destination in [(1,4),(4,1)]:  # generalize...?
                 while self.removals[t][source]:
                     a = self.removals[t][source].pop()
-                    #print "  updating: agent",a,"moved",source,"->",destination
+                    print "  updating: agent",a,"moved",source,"->",destination
                     self.agents[source].remove(a)
                     self.agents[destination].append(a)
-            #print "**"
+            print "**"
                                 
     def add(self, agent, home):
-        if random.random() < self.migration[home]['proportion']:
+        if agent.sex == 0 and random.random() < self.migration[home]['proportion']:
             agent.migrant = True
-            away = [1,4][home==1]  # needs generalization
-            time_away = self.migration[home]['time_away']
-            time_home = self.time_home
+            away = random.choice([2,4])  # needs generalization
+            time_away = self.migration[away]['time_here']
+            time_home = self.migration[home]['time_here']
             
             #create travel schedule
             start_time = self.time + random.randint(time_away)

@@ -12,26 +12,26 @@ is the initial test script for proof of concept.
 from mpi4py import MPI
 import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
 import simpactpurple.distributed.MigrationOperator as MigrationOperator
+import simpactpurple.distributed.OperatorsDistributed as OperatorsDistributed
 import sys
 import simpactpurple.GraphsAndData as GraphsAndData
+import numpy as np
+import numpy.random as random
+
+class MigrationModelInfectionOperator(OperatorsDistributed.InfectionOperator):
+    pass
+    
+
 
 #MPI variables
 name = MPI.Get_processor_name()
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
-#simulation variables
-if len(sys.argv)>1:
-    pop = int(sys.argv[1])
-else: 
-    pop = 200
-    print "Using default population size:",pop
-    
-if len(sys.argv)>2:
-    time = float(sys.argv[2])
-else: 
-    time = 30
-    print "Using default number years:",time
+#model parameters
+time = 1
+population = {1:1, 2: 10, 3: 0, 4:5, 5:0}  # initial population scales {rank:population}
+pop = 300
 
 #assign roles via ranks
 if rank == 0: #Migration Operator
@@ -41,15 +41,15 @@ if rank == 0: #Migration Operator
 else:
     primary, others = comm.recv(source = 0)
     s = CommunityDistributed.CommunityDistributed(comm, primary, others, migration = True)
-    s.INITIAL_POPULATION = pop
+    s.INITIAL_POPULATION = pop * population[rank]
     s.NUMBER_OF_YEARS = time
-    s.community_multipier = 0.2
-    s.run()
     
-    if comm.Get_rank() == 1:
-        GraphsAndData.formed_relations_graph(s, filename='3formedrelations.png')
-        print s.infection_operator.number_infected
-#    	GraphsAndData.formed_relations_graph(c,filename='formed_relations'+str(c.rank)+'.png')
-#    	GraphsAndData.demographics_graph(c,filename='demographics'+str(c.rank)+'.png')
-#    	GraphsAndData.prevalence_graph(c,filename='prevalence'+str(c.rank)+'.png')
+    #change some parameters
+    s.infection_operator = MigrationModelInfectionOperator(s)
+    s.PROBABILITY_MULTIPLIER = 0
+    s.DURATIONS = lambda a1, a2: np.mean((s.age(a1),s.age(a2)))*random.exponential(5)
+    
+    
+    s.run()
+
 
