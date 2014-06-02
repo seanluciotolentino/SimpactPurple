@@ -17,11 +17,11 @@ class RelationshipOperator(Operators.RelationshipOperator):
         Take a single time step in the simulation. 
         """
         #1.1 Recruit
-		recruits = 0
+        recruits = 0
         for i in range(2*self.master.recruit):
             recruits += self.recruit()
-			if recruits >= self.master.recruit:
-				break
+            if recruits >= self.master.recruit:
+                break
         self.master.broadcast(('done','recruiting'))
         #1.2 Swap
         self.master.listen_all('new recruits')
@@ -66,9 +66,9 @@ class RelationshipOperator(Operators.RelationshipOperator):
                 self.master.main_queue.push(gq, agent)
             else:
                 self.master.comm.send(('push',agent),dest=rank)
-			return 1
-		else:
-			return 0
+            return 1
+        else:
+            return 0
     
     def match_enquire(self):
         """
@@ -125,12 +125,10 @@ class RelationshipOperator(Operators.RelationshipOperator):
         # Reject based on DNP rule
         for agent in [agent1, agent2]:
             if self.master.network.degree(agent) >= agent.dnp:
-                print "DNP rejection:",agent1,agent2
                 return
                 
         # Reject if relationship exists
         if self.master.network.has_edge(agent1,agent2):
-            print "pre-existing rejection:",agent1,agent2
             return
                 
         #actually form the relationship        

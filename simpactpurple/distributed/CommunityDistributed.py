@@ -25,7 +25,7 @@ class CommunityDistributed(simpactpurple.Community):
         #print "hello from rank",self.rank, "my primary is", self.primary
         #all other parameters inherited
 		
-	def start(self):
+    def start(self):
         """
         Initialize the transition matrix based on transition probabilities.
         """
