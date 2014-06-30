@@ -87,6 +87,7 @@ class CommunityDistributed(simpactpurple.Community):
         """
         #add primary community number as prefix to agent's name (for migration)
         if type(agent.name) == type(0):
+            agent.primary = self.primary
             agent.name = str(self.primary) + "-" + str(agent.name)
         
         #save agent
@@ -105,10 +106,13 @@ class CommunityDistributed(simpactpurple.Community):
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
         self.add_to_grid_queue(agent)        
         
-        if self.migration:  # and not an update add
+        if self.migration:  # and not an migration add
             agent.attributes["MIGRATION"] = [(self.time, 0, self.rank)]
             self.comm.send(('add',agent), dest = 0)
-        
+
+        #add to infected agents list if applicable            
+        if agent.time_of_infection < np.inf:
+            self.infection_operator.infected_agents.append(agent)
         
     def add_to_grid_queue(self, agent):
         """
@@ -212,7 +216,13 @@ class CommunityDistributed(simpactpurple.Community):
                 self.add_to_simulation(agent)
                 #print "    -",agent.name,"in network:",agent in self.network
             self.migration = True
-                        
+            
+            #if self.rank == 1:
+            #    print "=====",self.time,"====="
+            #    print 'removals:', [(a.name, a.time_of_infection) for a in removals]
+            #    print 'additions:', [(a.name, a.time_of_infection) for a in additions]    
+            #    print "===========" 
+            #    print                   
             
             #0.3 finish
             self.broadcast(('done','migration updating'))

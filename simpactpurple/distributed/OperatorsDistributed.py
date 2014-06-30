@@ -51,21 +51,22 @@ class RelationshipOperator(Operators.RelationshipOperator):
         agent_name = self.master.pipes[gq].recv()
         if agent_name is not None:
             agent = self.master.agents[agent_name]
+            
             #send fraction of agents to other community
-            #if np.random.random() < 1.0/self.master.size:
-            #    self.master.main_queue.push(gq, agent)  # keep agent
-            #else:
-            #    #other = self.master.others[random.randint(len(self.master.others))]
-            #    other = random.choice(self.master.others)
-            #    self.master.comm.send(('push',agent),dest=other)
+            if np.random.random() < 1.0/self.master.size:
+                self.master.main_queue.push(gq, agent)  # keep agent
+            else:
+                #other = self.master.others[random.randint(len(self.master.others))]
+                other = random.choice(self.master.others)
+                self.master.comm.send(('push',agent),dest=other)
 
             #send fraction based on transition matrix
-            rand = np.random.random()
-            rank = [int(v) for v in rand < self.master.transition[:,self.master.rank]].index(1)
-            if rank == self.master.rank:
-                self.master.main_queue.push(gq, agent)
-            else:
-                self.master.comm.send(('push',agent),dest=rank)
+            #rand = np.random.random()
+            #rank = [int(v) for v in rand < self.master.transition[:,self.master.rank]].index(1)
+            #if rank == self.master.rank:
+            #    self.master.main_queue.push(gq, agent)
+            #else:
+            #    self.master.comm.send(('push',agent),dest=rank)
             return 1
         else:
             return 0
@@ -125,13 +126,18 @@ class RelationshipOperator(Operators.RelationshipOperator):
         # Reject based on DNP rule
         for agent in [agent1, agent2]:
             if self.master.network.degree(agent) >= agent.dnp:
+                #print "--> DNP rejected"
                 return
                 
         # Reject if relationship exists
         if self.master.network.has_edge(agent1,agent2):
+            #print "--> pre-exisiting rejected"
             return
                 
-        #actually form the relationship        
+        #actually form the relationship
+        #if agent1.primary != agent2.primary:
+        #    print self.master.time, "relationship between",agent1, "(", \
+        #            agent1.time_of_infection,")",agent2,"(",agent2.time_of_infection,")"
         Operators.RelationshipOperator.form_relationship(self, agent1, agent2)
         
         #remove from grid queue if necessary
@@ -227,8 +233,6 @@ class TimeOperator(Operators.TimeOperator):
         if agent.time_of_infection < np.inf:
             self.master.infection_operator.infected_agents.remove(agent)
         
-
-        
 class InfectionOperator(Operators.InfectionOperator):
     """
     Controls the progression of the sexually transmitted disease. 
@@ -248,6 +252,7 @@ class InfectionOperator(Operators.InfectionOperator):
         if not self.master.is_primary:
             return
         self.number_infected.append(len(self.infected_agents))
+        old_infected = len(self.infected_agents)
         #Go through edges and flip coin for infections
         now = self.master.time
         for agent in self.infected_agents:
@@ -255,11 +260,17 @@ class InfectionOperator(Operators.InfectionOperator):
             for r in relationships:
                 if (r[0].time_of_infection < now and r[1].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     self.infected_agents.append(r[1])
-                    r[1].time_of_infection = now
+                    r[1].time_of_infection = now 
+                    #if r[0].primary != r[1].primary:
+                    #    print self.master.time, "infection:",r[0],"->",r[1]
                     continue
                 if (r[1].time_of_infection < now and r[0].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     self.infected_agents.append(r[0])
                     r[0].time_of_infection = now
+                    #if r[0].primary != r[1].primary:
+                    #    print self.master.time, "infection:",r[1],"->",r[0]
+        if self.master.migration:
+            self.master.comm.send(("infections",[a.name for a in self.infected_agents[old_infected:]]), dest = 0)
 
     def perform_initial_infections(self, initial_prevalence, seed_time):
         """
@@ -268,12 +279,10 @@ class InfectionOperator(Operators.InfectionOperator):
         if not self.master.is_primary:
             return
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
-        #agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
         agent = random.choice(self.master.agents.values())
         for i in range(infections):
-            #while agent in self.infected_agents:  # avoid duplicates
-            while agent in self.infected_agents or agent.partition != self.master.primary:  # avoid duplicates and seed in primary
-                #agent = self.master.agents.values()[random.randint(0, len(self.master.agents) - 1)]
+            while agent in self.infected_agents:  # avoid duplicates
+            #while agent in self.infected_agents or agent.partition != self.master.primary:  # avoid duplicates and seed in primary
                 agent = random.choice(self.master.agents.values())
             agent.time_of_infection = seed_time
             self.infected_agents.append(agent)
