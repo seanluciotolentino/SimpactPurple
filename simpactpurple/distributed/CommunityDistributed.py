@@ -97,7 +97,7 @@ class CommunityDistributed(simpactpurple.Community):
         #assign a grid queue
         grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
         agent.grid_queue = grid_queue.index
-        
+       
         #assign a partition
         partitions = list(self.others)
         partitions.append(self.primary)  # only primary calls this so same as self.rank

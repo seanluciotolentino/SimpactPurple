@@ -263,7 +263,7 @@ class Community():
         print "Cumulative num relations:",len(self.relationships)
         print "Point prevalence of relations:",len(self.network.edges())
         print "Grid Queues"
-        print "agents in grid queues = ",sum([ len(gq.my_agents.heap) for gq in self.grid_queues.values()])
+        print "agents in grid queues = ",sum([ len(gq.agents.heap) for gq in self.grid_queues.values()])
             
         print "GQ\t| G Ag Sz|| doubles?\t|| agents"
         print "------------------------------------------"
