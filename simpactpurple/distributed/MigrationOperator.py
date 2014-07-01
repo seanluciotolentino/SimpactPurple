@@ -10,50 +10,49 @@ import random
 
 class MigrationOperator:
     
-    def __init__(self, comm):
+    def __init__(self, comm, primaries, proportion_migrate, distance):
         #model parameters
         self.NUMBER_OF_YEARS = 30
         
         #data structures
         self.comm = comm
+        self.rank_primaries = primaries
+        self.primaries = set(primaries[1:])  # grab unique primaries
+        self.distance = distance
+        self.rank = self.comm.Get_rank()  # should be zero
+
+        
+    def start(self):
+        """
+        Initialize necessary data structures and do checks for
+        well-formed inputs.
+        """
+        #basic structures
         self.agents = {}  # rank -> [list of agents on rank]
         self.all_agents = {}  # agent_name -> agent
         self.time = 0
-        self.rank = self.comm.Get_rank()  # should be zero
-        
-        #Migration operator parameters
-        self.migration = {1:{'num_communities':1,'proportion':0.6,'time_here':30},
-                          2:{'num_communities':2,'proportion':0,'time_here':4},
-                          4:{'num_communities':2,'proportion':0,'time_here':12}}
-        self.time_home = 2
-        self.max_weeks = (65*52)+1  # for efficiently knowing the end of an agents life
-        self.sexual_behavior_association = 0.0  # percent chance that migrant has increased sexual behavior
-        self.sexual_behavior_amount = 1.5 # set migrant DNP to this value...?
-        
-    def start(self):
         self.removals = {t:{1:[],2:[],4:[]} for t in range(1+int(self.NUMBER_OF_YEARS*52))}
         self.additions = {t:{1:[],2:[],4:[]} for t in range(1+int(self.NUMBER_OF_YEARS*52))}
+
+        #check that primaries are well formed
+        for p in self.rank_primaries:
+            if self.rank_primaries[p] != p:
+                raise ValueError, "Malformed primary list" 
+                
+        #check that rank is 0
+        if self.rank != 0:
+            raise ValueError, "Migration Operator not set as rank 0"
+            
+        #build migration transition matrix
+        if len(set(self.primaries))-1 != len(self.distance[0]):
+            raise ValueError, "Number of primaries doesn't match distance matrix"
+        self.distance = np.matrix(self.distance)
+        probabilities = self.distance / np.transpose(np.sum(self.distance, axis=1))
+        self.transition = np.cumsum(probabilities, axis=0)
         
-    def send_roles(self):
-        """
-        Define primary and secondary communities. Send roles to nodes
-        on other ranks.
-        """
-        for primary in self.migration:
-            num_communities = self.migration[primary]['num_communities']
-            others = range(primary,primary+num_communities)
-            self.agents[primary] = []
-            for rank in range(primary,primary+num_communities):
-                others.remove(rank)
-                self.comm.send((primary, others), dest = rank)
-                others.append(rank)
-                #print "Migration Operator sent:",primary,others,"to",rank            
         
     def run(self):
-        self.start()        
-        
-        #send roles:
-        self.send_roles()
+        self.start()
     
         #initially listen for agents
         self.listen_all('initial agents')
@@ -81,16 +80,18 @@ class MigrationOperator:
                                 
     def add(self, agent, home):
         #print "     adding agent",agent,"from",home,
-        if agent.sex == 0 and random.random() < self.migration[home]['proportion']:
+        if agent.sex == 0 and random.random() < self.proportion_migrate[home]:
             #assign migration place
-            away = random.choice([2,4])  # needs generalization
+            column = set(self.primaries[1:]).index(self.primaries[home]) # respective column in the transition matrix for hom
+            away = [int(v) for v in np.random.random() < self.transition[:,column]].index(1)
             agent.migrant = away
-            time_away = self.migration[away]['time_here']
-            time_home = self.migration[home]['time_here']
+            time_away = self.migration[away][home]
+            time_home = self.migration[home][away]
                         
             #create travel schedule
+            max_weeks = (65*52)+1
             start_time = self.time + random.randint(0, time_away)
-            end_time = int(np.min(((self.NUMBER_OF_YEARS*52)-1, self.max_weeks+agent.born)))
+            end_time = int(np.min(((self.NUMBER_OF_YEARS*52)-1, max_weeks+agent.born)))
             #schedule travel away
             for time in range(start_time, end_time, time_away+time_home):
                 self.removals[time][home].append(agent)
@@ -103,14 +104,17 @@ class MigrationOperator:
                 agent.attributes["MIGRATION"].append((self.time, away, home))
                 
             #set associated increase in sexual behavior
-            if random.random() < self.sexual_behavior_association:
-                agent.dnp = max((self.sexual_behavior_amount,agent.dnp))
+            #if random.random() < self.sexual_behavior_association:
+            #    agent.dnp = max((self.sexual_behavior_amount,agent.dnp))
         else:
             #print "--> no migration"
-            agent.migrant = 1
+            agent.migrant = home
             
     def listen_all(self, for_what):
-        for primary in self.migration:
+        """
+        Listen to primaries in turn.
+        """
+        for primary in self.primaries:
             self.listen(for_what, primary)
         
     def listen(self, for_what, from_whom):
