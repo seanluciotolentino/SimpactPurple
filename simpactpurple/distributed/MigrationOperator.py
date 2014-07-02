@@ -3,6 +3,7 @@
 Created on Tue Mar 11 11:11:03 2014
 
 @author: Lucio
+
 """
 
 import numpy as np
@@ -10,7 +11,7 @@ import random
 
 class MigrationOperator:
     
-    def __init__(self, comm, primaries, proportion_migrate, distance, timing):
+    def __init__(self, comm, primaries, proportion_migrate, gravity, timing):
         #model parameters
         self.NUMBER_OF_YEARS = 30
         
@@ -19,7 +20,7 @@ class MigrationOperator:
         self.rank_primaries = primaries
         self.primaries = list(set(primaries[1:]))  # grab unique primaries
         self.proportion_migrate = proportion_migrate
-        self.distance = distance
+        self.gravity = gravity
         self.timing = timing
         self.rank = self.comm.Get_rank()  # should be zero
 
@@ -45,12 +46,13 @@ class MigrationOperator:
             raise ValueError, "Migration Operator not set as rank 0"
             
         #build migration transition matrix
-        if len(self.primaries) != len(self.distance[0]):
+        if len(self.primaries) != len(self.gravity[0]):
             raise ValueError, "Number of primaries doesn't match distance matrix. Primaries="\
-                +str(len(set(self.primaries))-1)+" Distance columns="+str(len(self.distance[0]))
-        self.distance = np.matrix(self.distance)
-        probabilities = self.distance / np.transpose(np.sum(self.distance, axis=1))
-        self.transition = np.cumsum(probabilities, axis=0)
+                +str(len(set(self.primaries))-1)+" Distance columns="+str(len(self.gravity[0]))
+        self.gravity = np.matrix(self.gravity)
+        #probabilities = self.gravity / np.transpose(np.sum(self.gravity, axis=1))
+        #self.transition = np.cumsum(probabilities, axis=0)
+        self.transition = np.cumsum(self.gravity, axis=0)
         
     def run(self):
         self.start()
@@ -62,33 +64,33 @@ class MigrationOperator:
         for t in range(int(self.NUMBER_OF_YEARS*52)):
             #basic simulation
             #if t%100 == 0:
-            print "**MO time",t
+            #print "**MO time",t
             self.time = t
             self.listen_all('community updates')
 
             #perform migration steps
             for source in range(len(self.primaries)):
-                print "  removed from",self.primaries[source],[a.name for a in self.removals[t][source]]
+                #print "  removed from",self.primaries[source],[a.name for a in self.removals[t][source]]
                 self.comm.send(self.removals[t][source], dest = self.primaries[source])
                 for a in self.removals[t][source]:  # bookkeeping
                     self.agents[self.primaries[source]].remove(a)
                     
             for destination in range(len(self.primaries)):
-                print "  added to",self.primaries[destination],[a.name for a in self.additions[t][destination]]
+                #print "  added to",self.primaries[destination],[a.name for a in self.additions[t][destination]]
                 self.comm.send(self.additions[t][destination], dest = self.primaries[destination])
                 for a in self.additions[t][destination]:  # bookkeeping
                     self.agents[self.primaries[destination]].append(a)
                                 
     def add(self, agent, rank):
-        print "     adding agent",agent,"from",rank,
         home = self.primaries.index(self.rank_primaries[rank]) # respective column in the transition matrix for rank
-        if agent.sex == 0 and random.random() < self.proportion_migrate[rank]:
+        #print "     adding agent",agent,"from",rank,"home",home,
+        if agent.sex == 0 and random.random() < self.proportion_migrate[home]:
             #find home and away
             away = [int(v) for v in np.random.random() < self.transition[:,home]].index(1)
             agent.migrant = self.primaries[away]
             time_away = self.timing[away][home]
             time_home = self.timing[home][away]
-            print " --> migrates to", away
+            #print " --> migrates to", away
                         
             #create travel schedule
             max_weeks = (65*52)+1
@@ -109,7 +111,7 @@ class MigrationOperator:
             #if random.random() < self.sexual_behavior_association:
             #    agent.dnp = max((self.sexual_behavior_amount,agent.dnp))
         else:
-            print "--> no migration"
+            #print "--> no migration"
             agent.migrant = home
             
     def listen_all(self, for_what):
