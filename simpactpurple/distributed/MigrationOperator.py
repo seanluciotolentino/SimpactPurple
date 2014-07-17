@@ -63,8 +63,8 @@ class MigrationOperator:
         #mainloop
         for t in range(int(self.NUMBER_OF_YEARS*52)):
             #basic simulation
-            #if t%100 == 0:
-            #print "**MO time",t
+            #if t%52 == 0:
+            #    print "**MO time",t/52
             self.time = t
             self.listen_all('community updates')
 
@@ -101,11 +101,17 @@ class MigrationOperator:
                 self.removals[time][home].append(agent)
                 self.additions[time][away].append(agent)
                 agent.attributes["MIGRATION"].append((self.time, home, away))
+            last_away = time
             #schedule return home
             for time in range(start_time+time_away, end_time, time_away+time_home):
                 self.removals[time][away].append(agent)
                 self.additions[time][home].append(agent)
                 agent.attributes["MIGRATION"].append((self.time, away, home))
+            last_home = time
+            #send home at end of simulation for counting purposes
+            if last_away > last_home:
+                self.removals[end_time][away].append(agent)
+                self.additions[end_time][home].append(agent)
                 
             #set associated increase in sexual behavior
             #if random.random() < self.sexual_behavior_association:
@@ -128,10 +134,8 @@ class MigrationOperator:
         """
         #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
         msg, agent = self.comm.recv(source = from_whom)  # data depends on msg
-        while True:
+        while msg != 'done':
             #print "  > listening on",self.rank,"| msg:",msg,"agent:",agent
-            if msg == 'done':
-                break
             
             #parse message and act            
             if msg == 'add':

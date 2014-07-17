@@ -193,12 +193,17 @@ class CommunityDistributed(simpactpurple.Community):
             return
 
         if self.is_primary:
-            self.comm.send(('done','updating'), dest = 0)
-            #print '-----primary',self.rank,'migration operations-----'
             self.migration = False  # temp disable 'add' and 'remove' messages to MO
+            
+            self.comm.send(('done','updating'), dest = 0)
+#            if self.rank == 1:
+#                print '-----primary',self.rank,'migration operations-----'
+            
             #0.1 Remove some agents (migrate away)
             removals = self.comm.recv(source = 0)
-            #print self.rank,"  received removals:",[a.name for a in removals]
+#            if self.rank == 1:
+#                print self.rank,"  received removals:",[a.name for a in removals]
+
             for removed in removals:
                 agent = self.agents[removed.name]
                 #send remove to grid queue in addition to time op remove
@@ -206,23 +211,26 @@ class CommunityDistributed(simpactpurple.Community):
                     self.comm.send(('remove_from_grid_queue',agent.name), dest = agent.partition)
                 else:
                     self.pipes[agent.grid_queue].send("remove")
-                    self.pipes[agent.grid_queue].send(agent.name)
+                    self.pipes[agent.grid_queue].send(agent.name)                    
                 self.time_operator.remove(agent)
+                del self.agents[removed.name]
                 
             #0.2 Add some agents (migrate in)
             additions = self.comm.recv(source = 0)
-            #print self.rank,"  received additions:",[a.name for a in additions]
+#            if self.rank == 1:
+#                print self.rank,"  received additions:",[a.name for a in additions]
+#                print
             for agent in additions:
                 self.add_to_simulation(agent)
                 #print "    -",agent.name,"in network:",agent in self.network
             self.migration = True
             
-            #if self.rank == 1:
-            #    print "=====",self.time,"====="
-            #    print 'removals:', [(a.name, a.time_of_infection) for a in removals]
-            #    print 'additions:', [(a.name, a.time_of_infection) for a in additions]    
-            #    print "===========" 
-            #    print                   
+#            if self.rank == 1:
+#                print "=====",self.time,"====="
+#                print 'removals:', [(a.name, a.time_of_infection) for a in removals]
+#                print 'additions:', [(a.name, a.time_of_infection) for a in additions]    
+#                print "===========" 
+#                print              
             
             #0.3 finish
             self.broadcast(('done','migration updating'))

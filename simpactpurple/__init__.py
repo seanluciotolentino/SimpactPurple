@@ -58,7 +58,7 @@ class Community():
         
         #infection operator
         self.INFECTIVITY = 0.01
-        self.INTIIAL_PREVALENCE = 0.01
+        self.INITIAL_PREVALENCE = 0.01
         self.SEED_TIME = 20  # in weeks
 
         #time operator
@@ -125,7 +125,7 @@ class Community():
         #initialize population
         self.make_population(self.INITIAL_POPULATION)  # make agents
         self.BORN = lambda: self.time - (52*15.02)  # new born function for replacement
-        self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
+        self.infection_operator.perform_initial_infections(self.INITIAL_PREVALENCE, self.SEED_TIME) 
     
     def make_queues(self):
         """
