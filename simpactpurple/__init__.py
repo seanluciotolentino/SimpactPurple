@@ -63,8 +63,6 @@ class Community():
 
         #time operator
         self.time = -1
-        self.next_top = -52 * self.MAX_AGE
-        self.next_bottom = -52 * (self.MAX_AGE + self.BIN_SIZE)
         self.grid_queue_index = 0
                 
         #MODEL POPULATION
@@ -118,7 +116,9 @@ class Community():
         self.relationships_ending_at = {t:[] for t in range(1+int(self.NUMBER_OF_YEARS*52))}
         self.main_queue = PriorityQueue.PriorityQueue()
 
-        #grid queues and operators        
+        #grid queues and operators     
+        self.next_top = -52 * self.MAX_AGE
+        self.next_bottom = -52 * (self.MAX_AGE + self.BIN_SIZE)   
         self.make_queues()
         self.make_operators()  
         

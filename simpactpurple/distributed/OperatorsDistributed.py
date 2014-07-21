@@ -187,6 +187,7 @@ class TimeOperator(Operators.TimeOperator):
             
         #2.1 Make a new grid queue if necessary
         if self.master.time%(self.master.BIN_SIZE*52)==0:
+            #print self.master.rank,"making new grid queues at time", self.master.time
             self.master.make_n_queues(self.master.SEXES)
             
         #2.2 Grab oldest agents from oldest grid queues
@@ -205,6 +206,7 @@ class TimeOperator(Operators.TimeOperator):
                 
         #2.3. Terminate old grid queue if necessary
         if self.master.time%(self.master.BIN_SIZE*52)==0:
+            #print self.master.rank,"ending old grid queues at time", self.master.time
             for queue in self.oldest_queues:
                 self.master.pipes[queue].send("terminate")
                 self.master.grid_queue_ranks.append(self.master.pipes[queue].rank)  # add rank as free

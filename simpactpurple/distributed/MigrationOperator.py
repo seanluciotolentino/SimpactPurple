@@ -17,8 +17,7 @@ class MigrationOperator:
         
         #data structures
         self.comm = comm
-        self.rank_primaries = primaries
-        self.primaries = list(set(primaries[1:]))  # grab unique primaries
+        self.primaries = primaries
         self.proportion_migrate = proportion_migrate
         self.gravity = gravity
         self.timing = timing
@@ -35,15 +34,14 @@ class MigrationOperator:
         self.time = 0
         self.removals = {t:{p:[] for p in range(len(self.primaries))} for t in range(1+int(self.NUMBER_OF_YEARS*52))}
         self.additions = {t:{p:[] for p in range(len(self.primaries))} for t in range(1+int(self.NUMBER_OF_YEARS*52))}
-
-        #check that primaries are well formed
-        for p in self.rank_primaries:
-            if self.rank_primaries[p] != p:
-                raise ValueError, "Malformed primary list" 
-                
+   
         #check that rank is 0
         if self.rank != 0:
             raise ValueError, "Migration Operator not set as rank 0"
+            
+        #check that enough slots were allocated
+        if self.comm.Get_size()/16 != self.primaries[-1]:
+            raise ValueError, "Not enouh slots/MPIprocesses for {0} communities".format(self.primaries[-1])
             
         #build migration transition matrix
         if len(self.primaries) != len(self.gravity[0]):
@@ -64,7 +62,7 @@ class MigrationOperator:
         for t in range(int(self.NUMBER_OF_YEARS*52)):
             #basic simulation
             #if t%52 == 0:
-            #    print "**MO time",t/52
+            print "**MO time",t
             self.time = t
             self.listen_all('community updates')
 
@@ -82,7 +80,7 @@ class MigrationOperator:
                     self.agents[self.primaries[destination]].append(a)
                                 
     def add(self, agent, rank):
-        home = self.primaries.index(self.rank_primaries[rank]) # respective column in the transition matrix for rank
+        home = self.primaries.index(rank) # respective column in the transition matrix for rank
         #print "     adding agent",agent,"from",rank,"home",home,
         if agent.sex == 0 and random.random() < self.proportion_migrate[home]:
             #find home and away
@@ -134,10 +132,10 @@ class MigrationOperator:
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
+        print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
         msg, agent = self.comm.recv(source = from_whom)  # data depends on msg
         while msg != 'done':
-            #print "  > listening on",self.rank,"| msg:",msg,"agent:",agent
+            print "  > listening on",self.rank,"| msg:",msg,"agent:",agent
             
             #parse message and act            
             if msg == 'add':
@@ -156,5 +154,5 @@ class MigrationOperator:
                 raise ValueError,'Unknown message received:'+msg
             msg, agent = self.comm.recv(source = from_whom)  # listen for next message
         
-        #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
-        #print
+        print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
+        print

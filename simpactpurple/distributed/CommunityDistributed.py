@@ -1,6 +1,7 @@
 import numpy.random as random
 import numpy as np
 import simpactpurple
+import simpactpurple.GridQueue as GridQueue
 import OperatorsDistributed
 import time as Time
 
@@ -20,6 +21,24 @@ class MPIpe():
     def recv(self):
         return self.comm.recv(source=self.rank)
     
+class QueueServer():
+    """
+    An object which waits for queues to serve.
+    """
+    def __init__(self, master, comm):
+        self.master = master
+        self.comm = comm
+        
+    def run(self):
+        msg = self.comm.recv(source = self.master)
+        #print "hello from GQ RANK", rank, "on", MPI.Get_processor_name(), "master", master
+        while not msg == 'done':
+            gq = msg
+            pipe = MPIpe(self.master, self.comm)
+            #print rank,"starting", gq.index
+            GridQueue.listen(gq, pipe)
+            msg = self.comm.recv(source = self.master)
+    
 class CommunityDistributed(simpactpurple.Community):
     """
     The main object for a distributed community simulation."
@@ -38,19 +57,21 @@ class CommunityDistributed(simpactpurple.Community):
         self.migration = migration
         self.transition_probabilities = np.ones((self.size,self.size))/self.size
         self.name_count=0
-        self.MAX_AGE = 50  # dictated by number of slots on helium -- 16
+        self.MAX_AGE = 40  # dictated by number of slots on helium -- 16
         
-        #grd queue ranks
+        #queue ranks
         slots_per_node = 16  # 16 on neon, 12 on helium
-        self.grid_queue_ranks = range(self.rank, slots_per_node*self.size, self.size)
-		
+        total_communities = self.comm.Get_size()/slots_per_node
+        self.grid_queue_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
+        print self.rank,"primary with gqranks:",self.grid_queue_ranks
+
     def start(self):
         """
         Initialize the transition matrix based on transition probabilities.
         """
         self.transition = np.cumsum(self.transition_probabilities, axis=0)
         simpactpurple.Community.start(self)
-    
+        
     def spawn_process_for(self, gq):
         """
         Spawns a new process via MPI ranks with communication via an MPIpe.
@@ -58,6 +79,9 @@ class CommunityDistributed(simpactpurple.Community):
         """
         gqrank = self.grid_queue_ranks.pop()
         self.comm.send(gq, dest = gqrank)
+        pipe = MPIpe(gqrank, self.comm)
+        self.pipes[gq.index] = pipe
+        #print "    ",self.rank,"started gq", gq.index,"on",gqrank, "bottom", gq.bottom/52, "top", gq.top/52
                 
     def make_operators(self):
         """
@@ -97,6 +121,7 @@ class CommunityDistributed(simpactpurple.Community):
         self.network.add_node(agent)
         
         #assign a grid queue
+        #print self.rank, "adding to simulation:",agent, "sex", agent.sex, "age", round(self.age(agent),2)
         grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
         agent.grid_queue = grid_queue.index
        
@@ -107,7 +132,7 @@ class CommunityDistributed(simpactpurple.Community):
         if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
         self.add_to_grid_queue(agent)        
-        #print "  > add", agent.name, "to", agent.grid_queue,"accepting gqs:",[gq.index for gq in self.grid_queues.values() if gq.accepts(agent)]
+        #print "  > add", agent.name, "to partition", agent.partition, "partitions",partitions
         if self.migration:  # and not an migration add
             agent.attributes["MIGRATION"] = [(self.time, 0, self.rank)]
             self.comm.send(('add',agent), dest = 0)
@@ -177,12 +202,10 @@ class CommunityDistributed(simpactpurple.Community):
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
+        print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
         msg, data = self.comm.recv(source = from_whom)  # data depends on msg
-        while True:
-            #print "  > listening on",self.rank,"| msg:",msg,"data:",data
-            if msg == 'done':
-                break
+        while msg != 'done':
+            print "  > listening on",self.rank,"| msg:",msg,"data:",data
             
             #parse message and act            
             if msg == 'add_to_simulation': # primary to non-primary
@@ -214,16 +237,24 @@ class CommunityDistributed(simpactpurple.Community):
                 raise Exception,"Unknown msg received: " + msg
             
             msg, data = self.comm.recv(source = from_whom)  # listen for next message
-        #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
-        #print
+        print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
+        print
 
+    def run(self, timing=False):
+        simpactpurple.Community.run(self)
+        #send "done" to all grid queue ranks
+        for r in range(self.rank+self.size, 16*self.size, self.size):
+            self.comm.send('done', dest = r)
+        
     def step(self):
         """
         Take a single time step (one week) in the simulation. 
         """
+        print self.rank,"stepping at time", self.time
         #1. Proceede normally
         simpactpurple.Community.step(self)
-            
+        
+        print self.rank,"migrating at time", self.time 
         #2. Migration operations
         if not self.migration:
             return
@@ -235,8 +266,8 @@ class CommunityDistributed(simpactpurple.Community):
             
             #0.1 Remove some agents (migrate away)
             removals = self.comm.recv(source = 0)
-            #print "===== rank",self.rank,"time",self.time,"====="
-            #print 'removals:', [(a.name, self.age(a))  for a in removals]
+            print "===== rank",self.rank,"time",self.time,"====="
+            print 'removals:', [a.name  for a in removals]
 
             for removed in removals:
                 agent = self.agents[removed.name]
