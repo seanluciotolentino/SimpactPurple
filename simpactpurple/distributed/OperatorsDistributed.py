@@ -207,6 +207,8 @@ class TimeOperator(Operators.TimeOperator):
         if self.master.time%(self.master.BIN_SIZE*52)==0:
             for queue in self.oldest_queues:
                 self.master.pipes[queue].send("terminate")
+                self.master.grid_queue_ranks.append(self.master.pipes[queue].rank)  # add rank as free
+                
                 del self.master.grid_queues[queue]
                 del self.master.pipes[queue]
             self.oldest_queues = self.master.grid_queues.keys()[:2]

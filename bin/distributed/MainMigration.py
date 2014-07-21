@@ -85,7 +85,7 @@ rank = comm.Get_rank()
 
 #simulation parameters
 time = 30
-pop = 100
+pop = 1000
 runs = 100
 
 #cluster set up

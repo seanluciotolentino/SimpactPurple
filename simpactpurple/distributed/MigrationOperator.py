@@ -93,9 +93,11 @@ class MigrationOperator:
             #print " --> migrates to", away
                         
             #create travel schedule
-            max_weeks = (65*52)+1
+            max_weeks = 50*52  # *was* +1
             start_time = self.time + random.randint(0, time_away)
             end_time = int(np.min(((self.NUMBER_OF_YEARS*52)-1, max_weeks+agent.born)))
+            if end_time <= start_time:
+                return
             #schedule travel away
             for time in range(start_time, end_time, time_away+time_home):
                 self.removals[time][home].append(agent)

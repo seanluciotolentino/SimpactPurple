@@ -150,17 +150,21 @@ class Community():
             gq.preferred_age_difference_growth = self.PREFERRED_AGE_DIFFERENCE_GROWTH
             self.grid_queues[gq.index] = gq
             self.grid_queue_index+=1
-                                    
-            #start a new process for it
-            pipe_top, pipe_bottom = multiprocessing.Pipe()
-            p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))
-            p.start()
-            self.pipes[gq.index] = pipe_top
+            self.spawn_process_for(gq)  # start a new process for it
         
         #increment for next grid queue
         self.next_top += self.BIN_SIZE*52
         self.next_bottom += self.BIN_SIZE*52
         
+    def spawn_process_for(self, gq):
+        """
+        Spawns a new process via multiprocessing with communication via a pipe.
+        In a seperate function to accomadate distributed version.
+        """
+        pipe_top, pipe_bottom = multiprocessing.Pipe()
+        p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))
+        p.start()
+        self.pipes[gq.index] = pipe_top
         
     def make_operators(self):
         """
