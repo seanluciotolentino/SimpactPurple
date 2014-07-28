@@ -267,7 +267,7 @@ class CommunityDistributed(simpactpurple.Community):
             #0.1 Remove some agents (migrate away)
             removals = self.comm.recv(source = 0)
             #print "===== rank",self.rank,"time",self.time,"====="
-            #print 'removals:', [a.name  for a in removals]
+            #print 'removals:', [(a.name, a.time_of_infection)  for a in removals]
 
             for removed in removals:
                 agent = self.agents[removed.name]
@@ -284,7 +284,7 @@ class CommunityDistributed(simpactpurple.Community):
                 
             #0.2 Add some agents (migrate in)
             additions = self.comm.recv(source = 0)
-            #print 'additions:', [(a.name, self.age(a)) for a in additions]
+            #print 'additions:', [(a.name, a.time_of_infection) for a in additions]
             for agent in additions:
                 self.add_to_simulation(agent)
             self.migration = True          

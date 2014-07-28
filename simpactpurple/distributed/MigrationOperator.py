@@ -10,17 +10,23 @@ import numpy as np
 import random
 
 class MigrationOperator:
-    
+    """
+    The class that oversees migration operation.
+    """
     def __init__(self, comm, primaries, gravity, timing):
         #model parameters
         self.NUMBER_OF_YEARS = 30
         
-        #data structures
+        #distributed parameters
         self.comm = comm
         self.primaries = primaries
         self.gravity = gravity
         self.timing = timing
         self.rank = self.comm.Get_rank()  # should be zero
+        
+        #neon constants
+        self.slots_per_node = 16  # number on neon
+        self.max_age = 40  # based on number of slots available
 
     def start(self):
         """
@@ -39,13 +45,15 @@ class MigrationOperator:
             raise ValueError, "Migration Operator not set as rank 0"
             
         #check that enough slots were allocated
-        if self.comm.Get_size()/16 != self.primaries[-1]:
+        if self.comm.Get_size()/self.slots_per_node != self.primaries[-1]:
             raise ValueError, "Not enough slots/MPIprocesses for {0} communities".format(self.primaries[-1])
             
-        #build migration transition matrix
+        #check that number of primary communities is equal to gravity
         if len(self.primaries) != len(self.gravity):
             raise ValueError, "Number of primaries doesn't match distance matrix. Primaries="\
-                +str(len(set(self.primaries))-1)+" Distance columns="+str(len(self.gravity[0]))
+                +str(len(self.primaries))+" gravity length="+str(len(self.gravity[0]))
+                
+        #transform gravity matrix into probability and transition matrix
         self.gravity = np.matrix(self.gravity)
         probabilities = self.gravity / np.transpose(np.sum(self.gravity, axis=1))
         self.transition = np.cumsum(probabilities, axis=0)
@@ -60,7 +68,9 @@ class MigrationOperator:
         for t in range(int(self.NUMBER_OF_YEARS*52)):
             #basic simulation
             #if t%52 == 0:
-            #print "**MO time",t
+            print "**MO time",t
+            print "  removals:",[len(self.removals[t][s]) for s in range(3)]
+            print "  additions:",[len(self.additions[t][d]) for d in range(3)]
             self.time = t
             self.listen_all('community updates')
 
@@ -81,24 +91,22 @@ class MigrationOperator:
         agent.migrant = home
         if agent.sex:
             agent.migrant = home
-        else: #agent.sex == 0:
+        else: # male agents
+            #choose a migration destination from transition matrix
             away = [int(v) for v in np.random.random() < self.transition[:,home]].index(1)
-            
             if home == away:
                 return
-            
+
+            #create travel schedule for the agents migration
             agent.migrant = self.primaries[away]
-            time_away = int(max(self.timing[away,home],1.0))
-            time_home = int(max(self.timing[home,away],1.0))
-            #print "agent",agent.name,"added. home",home,"away",away,"time home", time_home, "time_away", time_away
-                        
-            #create travel schedule
-            max_weeks = 40*52  # *was* +1
+            time_away = int(max(self.timing[home,home],1.0))
+            time_home = int(max(self.timing[away,home],1.0))
+            max_weeks = self.max_age*52
             start_time = self.time + random.randint(0, time_away)
             end_time = int(np.min(((self.NUMBER_OF_YEARS*52)-1, max_weeks+agent.born)))
             if end_time <= start_time:
                 return
-                
+            
             #schedule travel away
             for time in range(start_time, end_time, time_away+time_home):
                 self.removals[time][home].append(agent)
@@ -114,10 +122,10 @@ class MigrationOperator:
             last_home = time
             
             #send home at end of simulation for counting purposes
-            if last_away > last_home:
+            if last_away >= last_home:
                 self.removals[end_time][away].append(agent)
                 self.additions[end_time][home].append(agent)
-            
+
     def listen_all(self, for_what):
         """
         Listen to primaries in turn.
@@ -134,7 +142,6 @@ class MigrationOperator:
         msg, agent = self.comm.recv(source = from_whom)  # data depends on msg
         while msg != 'done':
             #print "  > listening on",self.rank,"| msg:",msg,"agent:",agent
-            
             #parse message and act            
             if msg == 'add':
                 self.agents[from_whom].append(agent)

@@ -286,8 +286,10 @@ class InfectionOperator(Operators.InfectionOperator):
         agent = random.choice(self.master.agents.values())
         for i in range(infections):
             while agent in self.infected_agents:  # avoid duplicates
-            #while agent in self.infected_agents or agent.partition != self.master.primary:  # avoid duplicates and seed in primary
                 agent = random.choice(self.master.agents.values())
             agent.time_of_infection = seed_time
             self.infected_agents.append(agent)
+        
+        if self.master.migration:
+            self.master.comm.send(("infections",[a.name for a in self.infected_agents]), dest = 0)
 

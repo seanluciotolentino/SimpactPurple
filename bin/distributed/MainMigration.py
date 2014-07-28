@@ -30,10 +30,11 @@ def calc_gravity(pop, dist, pop_power, dist_power):
 
 def run(pop_power, dist_power, when):
     #use parameters in the model:
-    dist = np.matrix([[1,3,5],[3,1,4],[5,4,1]])
+    #dist = np.matrix([[1,3,5],[3,1,4],[5,4,1]])
+    dist = np.matrix([[1,5,12],[5,1,5],[12,5,1]])
     pop = np.matrix(population[1:])
     gravity, probabilities, transition = calc_gravity(pop, dist, pop_power, dist_power)
-    timing = when*probabilities
+    timing = np.matrix([[1,3,5],[3,1,4],[5,4,1]])*5  # make a constant
     
     #assign roles via ranks
     if rank == 0: #Migration Operator
@@ -42,6 +43,8 @@ def run(pop_power, dist_power, when):
         mo.run()
         
         #grab messages from communities
+        print "timing",timing
+        print "probabilities",probabilities
         prev = []
         num_rela = []
         for r in [1,2,3]:
@@ -59,15 +62,17 @@ def run(pop_power, dist_power, when):
         #change some parameters
         #s.DURATIONS = lambda a1, a2: 10
         s.INFECTIVITY = 0.01
+        s.PROBABILITY_MULTIPLIER=0
         
         #run the model
         s.run()
         
         #generate some output to be analyzed
+        gad.prevalence_graph(s,filename="prevalence{0}.png".format(rank))
+        #gad.demographics_graph(s,box_size=5,num_boxes=8, filename='demographics{0}.png'.format(rank))
         if s.is_primary:
             comm.send(gad.prevalence_data(s)[-1], dest = 0)
             comm.send(len(s.relationships), dest = 0)
-    
     else:
         master = rank%(comm.Get_size()/16)
         master = [3,master][master>0]
@@ -85,16 +90,16 @@ pop = 100
 runs = 500
 
 #cluster set up
-population = np.array([0, 5, 3, 1])*pop #note that population size for non-primary doesn't matter
-initial_prevalence = [0, 0.01, 0.01, 0]
+population = np.array([0, 3, 3, 1])*pop #note that population size for non-primary doesn't matter
+initial_prevalence = [0, 0.05, 0.05, 0]
 primaries = [1, 2, 3]
 
 if len(sys.argv)<4:
     #do the runs
     for i in range(runs):
         #generate random parameters and share
-        who = round(numpy.random.rand(), 2)
-        where =  round(numpy.random.rand(), 2) #0.5 #
+        who = 2.0*round(numpy.random.rand(), 2)
+        where =  2.0*round(numpy.random.rand(), 2) #0.5 #
         when = random.choice(range(20,60,5)) #25 # 
             
         run(who, where, when)

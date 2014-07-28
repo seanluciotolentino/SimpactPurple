@@ -115,6 +115,10 @@ class Community():
         self.pipes = {}  # {gq.index : pipe}
         self.relationships_ending_at = {t:[] for t in range(1+int(self.NUMBER_OF_YEARS*52))}
         self.main_queue = PriorityQueue.PriorityQueue()
+        
+        #turn off warm up for short simulations
+        if int(self.NUMBER_OF_YEARS*52) < self.RECRUIT_WARM_UP:
+            self.RECRUIT_WARM_UP = 0
 
         #grid queues and operators     
         self.next_top = -52 * self.MAX_AGE
