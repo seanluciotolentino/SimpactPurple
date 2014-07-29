@@ -3,6 +3,7 @@ import numpy as np
 import simpactpurple
 import simpactpurple.GridQueue as GridQueue
 import OperatorsDistributed
+import simpactpurple.Operators
 import time as Time
 
 class MPIpe():
@@ -57,6 +58,7 @@ class CommunityDistributed(simpactpurple.Community):
         self.transition_probabilities = np.ones((self.size,self.size))/self.size
         self.name_count=0
         self.MAX_AGE = 40  # dictated by number of slots on helium -- 16
+        self.past_partners = {}
         
         #queue ranks
         slots_per_node = 16  # 16 on neon, 12 on helium
@@ -271,12 +273,16 @@ class CommunityDistributed(simpactpurple.Community):
 
             for removed in removals:
                 agent = self.agents[removed.name]
+                
+                #save agent's partners for their return
+                partners = self.network.edges(agent)
+                if len(partners)>0:
+                    self.past_partners[agent.name] = partners[0][1]
+                
                 #send remove to grid queue in addition to time op remove
                 if agent.partition is not self.rank:
-                    #print "  > ***removed", agent.name, "from", agent.grid_queue
                     self.comm.send(('remove_from_grid_queue',agent.name), dest = agent.partition)
                 else:
-                    #print "  > removed", agent.name, "from", agent.grid_queue
                     self.pipes[agent.grid_queue].send("remove")
                     self.pipes[agent.grid_queue].send(agent.name)                    
                 self.time_operator.remove(agent)
@@ -287,6 +293,12 @@ class CommunityDistributed(simpactpurple.Community):
             #print 'additions:', [(a.name, a.time_of_infection) for a in additions]
             for agent in additions:
                 self.add_to_simulation(agent)
+                #add any past relationships
+                if agent.name in self.past_partners:
+                    past_partner = self.past_partners[agent.name]
+                    simpactpurple.Operators.RelationshipOperator.form_relationship(self.relationship_operator, agent, past_partner)
+                    del self.past_partners[agent.name]
+
             self.migration = True          
             
             #0.3 finish

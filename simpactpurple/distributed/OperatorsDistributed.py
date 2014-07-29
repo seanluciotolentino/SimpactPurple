@@ -175,7 +175,7 @@ class TimeOperator(Operators.TimeOperator):
             for r in self.master.relationships_ending_at[self.master.time]:
                 try:
                     self.master.relationship_operator.dissolve_relationship(r[0], r[1])
-                except:
+                except:  # must have been dissolved by a migration
                     if r[0] in self.master.network:
                         self.master.add_to_grid_queue(r[0])
                     elif r[1] in self.master.network:

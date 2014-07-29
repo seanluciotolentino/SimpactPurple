@@ -43,15 +43,17 @@ def run(pop_power, dist_power, when):
         mo.run()
         
         #grab messages from communities
-        print "timing",timing
-        print "probabilities",probabilities
+        #print "timing",timing
+        #print "probabilities",probabilities
         prev = []
         num_rela = []
         for r in [1,2,3]:
             prev.append(round(comm.recv(source = r),3))
             num_rela.append(round(comm.recv(source = r),3))
-        print pop_power,dist_power,when," ".join(map(str,prev)), " ".join(map(str,num_rela))
-        
+            
+        print pop_power,dist_power,when," ".join(map(str,prev)), " ".join(map(str,num_rela)),
+        print [len(mo.removals[1557][s]) for s in range(3)],
+        print [len(mo.additions[1557][d]) for d in range(3)]
     elif rank in primaries:
         s = CommunityDistributed.CommunityDistributed(comm, rank, [], migration = True)
         s.INITIAL_POPULATION = population[rank]
@@ -68,10 +70,10 @@ def run(pop_power, dist_power, when):
         s.run()
         
         #generate some output to be analyzed
-        gad.prevalence_graph(s,filename="prevalence{0}.png".format(rank))
+        #gad.prevalence_graph(s,filename="prevalence{0}.png".format(rank))
         #gad.demographics_graph(s,box_size=5,num_boxes=8, filename='demographics{0}.png'.format(rank))
         if s.is_primary:
-            comm.send(gad.prevalence_data(s)[-1], dest = 0)
+            comm.send(gad.prevalence_data(s)[::52*5], dest = 0)
             comm.send(len(s.relationships), dest = 0)
     else:
         master = rank%(comm.Get_size()/16)
@@ -85,7 +87,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 #simulation parameters
-time = 30
+time = 31
 pop = 100
 runs = 500
 
