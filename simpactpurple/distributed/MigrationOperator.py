@@ -68,9 +68,9 @@ class MigrationOperator:
         for t in range(int(self.NUMBER_OF_YEARS*52)):
             #basic simulation
             #if t%52 == 0:
-            print "**MO time",t
-            print "  removals:",[len(self.removals[t][s]) for s in range(3)]
-            print "  additions:",[len(self.additions[t][d]) for d in range(3)]
+            #print "**MO time",t
+            #print "  removals:",[len(self.removals[t][s]) for s in range(3)]
+            #print "  additions:",[len(self.additions[t][d]) for d in range(3)]
             self.time = t
             self.listen_all('community updates')
 
