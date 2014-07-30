@@ -48,10 +48,13 @@ def run(pop_power, dist_power, when):
         prev = []
         num_rela = []
         for r in [1,2,3]:
-            prev.append(round(comm.recv(source = r),3))
+            #prev.append(round(comm.recv(source = r),3))
+            prev.append(comm.recv(source = r))
             num_rela.append(round(comm.recv(source = r),3))
             
-        print pop_power,dist_power,when," ".join(map(str,prev)), " ".join(map(str,num_rela)),
+        #print pop_power,dist_power,when," ".join(map(str,prev)), " ".join(map(str,num_rela)),
+        print pop_power,dist_power,when," ".join(map(lambda p: " ".join(map(str,p)),prev)),
+        print " ".join(map(str,num_rela)),
         print [len(mo.removals[1557][s]) for s in range(3)],
         print [len(mo.additions[1557][d]) for d in range(3)]
     elif rank in primaries:
