@@ -55,8 +55,8 @@ def run(pop_power, dist_power, when):
         #print pop_power,dist_power,when," ".join(map(str,prev)), " ".join(map(str,num_rela)),
         print pop_power,dist_power,when," ".join(map(lambda p: " ".join(map(str,p)),prev)),
         print " ".join(map(str,num_rela)),
-        print [len(mo.removals[1557][s]) for s in range(3)],
-        print [len(mo.additions[1557][d]) for d in range(3)]
+        print " ".join([str(len(mo.removals[1557][s])) for s in range(3)]),
+        print " ".join([str(len(mo.additions[1557][d])) for d in range(3)])
     elif rank in primaries:
         s = CommunityDistributed.CommunityDistributed(comm, rank, [], migration = True)
         s.INITIAL_POPULATION = population[rank]
@@ -104,7 +104,7 @@ if len(sys.argv)<4:
     for i in range(runs):
         #generate random parameters and share
         who = 2.0*round(numpy.random.rand(), 2)
-        where =  2.0*round(numpy.random.rand(), 2) #0.5 #
+        where =  6.0*round(numpy.random.rand(), 2) #0.5 #
         when = random.choice(range(20,60,5)) #25 # 
             
         run(who, where, when)
