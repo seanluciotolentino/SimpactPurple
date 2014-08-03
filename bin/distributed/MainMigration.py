@@ -51,12 +51,15 @@ def run(pop_power, dist_power, when):
             #prev.append(round(comm.recv(source = r),3))
             prev.append(comm.recv(source = r))
             num_rela.append(round(comm.recv(source = r),3))
+        seed_time = comm.recv(source=3)
+        
             
         #print pop_power,dist_power,when," ".join(map(str,prev)), " ".join(map(str,num_rela)),
         print pop_power,dist_power,when," ".join(map(lambda p: " ".join(map(str,p)),prev)),
         print " ".join(map(str,num_rela)),
         print " ".join([str(len(mo.removals[1557][s])) for s in range(3)]),
-        print " ".join([str(len(mo.additions[1557][d])) for d in range(3)])
+        print " ".join([str(len(mo.additions[1557][d])) for d in range(3)]),
+        print seed_time
     elif rank in primaries:
         s = CommunityDistributed.CommunityDistributed(comm, rank, [], migration = True)
         s.INITIAL_POPULATION = population[rank]
@@ -78,6 +81,8 @@ def run(pop_power, dist_power, when):
         if s.is_primary:
             comm.send(gad.prevalence_data(s)[::52*5], dest = 0)
             comm.send(len(s.relationships), dest = 0)
+        if rank == 3:
+            comm.send(min([a.time_of_infection for a in s.agents.values()]), dest = 0)
     else:
         master = rank%(comm.Get_size()/16)
         master = [3,master][master>0]
@@ -91,7 +96,7 @@ rank = comm.Get_rank()
 
 #simulation parameters
 time = 31
-pop = 100
+pop = 500
 runs = 500
 
 #cluster set up
@@ -103,7 +108,7 @@ if len(sys.argv)<4:
     #do the runs
     for i in range(runs):
         #generate random parameters and share
-        who = 2.0*round(numpy.random.rand(), 2)
+        who = 6.0*round(numpy.random.rand(), 2)
         where =  6.0*round(numpy.random.rand(), 2) #0.5 #
         when = random.choice(range(20,60,5)) #25 # 
             
