@@ -23,6 +23,7 @@ class MigrationOperator:
         self.gravity = gravity
         self.timing = timing
         self.rank = self.comm.Get_rank()  # should be zero
+        self.non_migrating_sex = 1
         
         #neon constants
         self.slots_per_node = 16  # number on neon
@@ -89,7 +90,7 @@ class MigrationOperator:
                                 
     def add(self, agent, home):
         agent.migrant = home
-        if agent.sex:
+        if agent.sex == self.non_migrating_sex:
             agent.migrant = home
         else: # male agents
             #choose a migration destination from transition matrix

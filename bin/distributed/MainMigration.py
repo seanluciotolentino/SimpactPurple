@@ -15,8 +15,7 @@ import simpactpurple.distributed.MigrationOperator as MigrationOperator
 import sys
 import simpactpurple.GraphsAndData as gad
 import numpy as np
-import numpy.random
-import random
+import numpy.random as random
 
 def calc_gravity(pop, dist, pop_power, dist_power):
      num = np.power(np.transpose(pop)*pop, pop_power)
@@ -40,6 +39,7 @@ def run(pop_power, dist_power, when):
     if rank == 0: #Migration Operator
         mo = MigrationOperator.MigrationOperator(comm, primaries, gravity, timing)
         mo.NUMBER_OF_YEARS = time
+        mo.non_migrating_sex = 2
         mo.run()
         
         #grab messages from communities
@@ -69,6 +69,7 @@ def run(pop_power, dist_power, when):
                 
         #change some parameters
         #s.DURATIONS = lambda a1, a2: 10
+        s.SEX = lambda: int(random.random() > 0.35)
         s.INFECTIVITY = 0.01
         s.PROBABILITY_MULTIPLIER=0
         
@@ -97,7 +98,7 @@ rank = comm.Get_rank()
 #simulation parameters
 time = 31
 pop = 500
-runs = 500
+runs = 100
 
 #cluster set up
 population = np.array([0, 3, 3, 1])*pop #note that population size for non-primary doesn't matter
