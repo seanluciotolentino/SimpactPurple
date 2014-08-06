@@ -9,6 +9,20 @@ Created on Tue Mar 11 11:11:03 2014
 import numpy as np
 import random
 
+def calc_gravity(pop, dist, pop_power, dist_power):
+    """
+    One example of a gravity function based on population 
+    and distance between communities.
+    """
+    num = np.power(np.transpose(pop)*pop, pop_power)
+    den = np.power(dist,dist_power)
+     
+    gravity = num/den
+    probabilities = gravity / np.sum(gravity, axis=0)
+    transition = np.cumsum(probabilities, axis=0)
+     
+    return gravity, probabilities, transition
+
 class MigrationOperator:
     """
     The class that oversees migration operation.

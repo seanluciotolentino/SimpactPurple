@@ -17,22 +17,32 @@ import simpactpurple.GraphsAndData as gad
 import numpy as np
 import numpy.random as random
 
-def calc_gravity(pop, dist, pop_power, dist_power):
-     num = np.power(np.transpose(pop)*pop, pop_power)
-     den = np.power(dist,dist_power)
-     
-     gravity = num/den
-     probabilities = gravity / np.sum(gravity, axis=0)
-     transition = np.cumsum(probabilities, axis=0)
-     
-     return gravity, probabilities, transition
+def distance_between(p1, p2):
+    return np.sqrt(((p1[0]+p2[0])**2)+((p1[1]+p2[1])**2))
+
+def load_data(kind="P"):
+    f = open('poplatlong.csv','r')
+    pop = {}
+    loc = {}
+    for line in f:
+        line = line.strip().split(",")
+        if line[0] != kind:
+            continue
+        else:
+            place = line[2]
+            pop[place] = line[4]
+            loc[place] = map(float,line[5:])
+            print place,"at",loc[place]
+            
+    dist = [[distance_between(loc[p1], loc[p2]) for p1 in loc] for p2 in loc]
+    return dist, pop.values()
 
 def run(pop_power, dist_power, when):
     #use parameters in the model:
     #dist = np.matrix([[1,3,5],[3,1,4],[5,4,1]])
     dist = np.matrix([[1,5,12],[5,1,5],[12,5,1]])
     pop = np.matrix(population[1:])
-    gravity, probabilities, transition = calc_gravity(pop, dist, pop_power, dist_power)
+    gravity, probabilities, transition = MigrationOperator.calc_gravity(pop, dist, pop_power, dist_power)
     timing = np.matrix([[1,3,5],[3,1,4],[5,4,1]])*5  # make a constant
     
     #assign roles via ranks
@@ -109,8 +119,8 @@ if len(sys.argv)<4:
     #do the runs
     for i in range(runs):
         #generate random parameters and share
-        who = 6.0*round(numpy.random.rand(), 2)
-        where =  6.0*round(numpy.random.rand(), 2) #0.5 #
+        who = 6.0*round(np.random.rand(), 2)
+        where =  6.0*round(np.random.rand(), 2) #0.5 #
         when = random.choice(range(20,60,5)) #25 # 
             
         run(who, where, when)
