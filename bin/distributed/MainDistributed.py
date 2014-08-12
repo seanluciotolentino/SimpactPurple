@@ -29,7 +29,6 @@ if rank in communities:
     others = range(num_communities)
     others.remove(rank)
     s = CommunityDistributed.CommunityDistributed(comm, 0, others)
-    #print "hello from PRIMARY", rank, "on", MPI.Get_processor_name(),"grid queue ranks:",s.grid_queue_ranks
     s.INITIAL_POPULATION = int(sys.argv[1])
     s.NUMBER_OF_YEARS = float(sys.argv[2])
     s.run()
@@ -40,5 +39,4 @@ if rank in communities:
     gad.formed_relations_graph(s, filename='formed_relations_graph{0}.png'.format(rank))
 else:
     master = rank%num_communities
-    s = CommunityDistributed.QueueServer(master, comm)
-    s.run()
+    CommunityDistributed.ServeQueue(master, comm)

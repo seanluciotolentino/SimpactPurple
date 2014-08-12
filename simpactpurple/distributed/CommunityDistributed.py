@@ -6,6 +6,17 @@ import OperatorsDistributed
 import simpactpurple.Operators
 import time as Time
 
+def ServeQueue(master, comm):
+    """
+    An function to waits for queues to serve.
+    """
+    msg = comm.recv(source = master)
+    while not msg == 'done':
+        gq = msg
+        pipe = MPIpe(master, comm)
+        GridQueue.listen(gq, pipe)
+        msg = comm.recv(source = master)
+
 class MPIpe():
     """
     A pipe based on the mpi4py module that acts similarly to the 
@@ -21,24 +32,7 @@ class MPIpe():
     
     def recv(self):
         return self.comm.recv(source=self.rank)
-    
-class QueueServer():
-    """
-    An object which waits for queues to serve.
-    """
-    def __init__(self, master, comm):
-        self.master = master
-        self.comm = comm
-        
-    def run(self):
-        msg = self.comm.recv(source = self.master)
-        while not msg == 'done':
-            gq = msg
-            pipe = MPIpe(self.master, self.comm)
-            GridQueue.listen(gq, pipe)
-            msg = self.comm.recv(source = self.master)
-        
-    
+
 class CommunityDistributed(simpactpurple.Community):
     """
     The main object for a distributed community simulation."

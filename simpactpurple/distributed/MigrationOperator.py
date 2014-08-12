@@ -58,11 +58,7 @@ class MigrationOperator:
         #check that rank is 0
         if self.rank != 0:
             raise ValueError, "Migration Operator not set as rank 0"
-            
-        #check that enough slots were allocated
-        if self.comm.Get_size()/self.slots_per_node != self.primaries[-1]:
-            raise ValueError, "Not enough slots/MPIprocesses for {0} communities".format(self.primaries[-1])
-            
+
         #check that number of primary communities is equal to gravity
         if len(self.primaries) != len(self.gravity):
             raise ValueError, "Number of primaries doesn't match distance matrix. Primaries="\
@@ -83,7 +79,7 @@ class MigrationOperator:
         for t in range(int(self.NUMBER_OF_YEARS*52)):
             #basic simulation
             #if t%52 == 0:
-            #print "**MO time",t
+            #    print "**MO time",t
             #print "  removals:",[len(self.removals[t][s]) for s in range(3)]
             #print "  additions:",[len(self.additions[t][d]) for d in range(3)]
             self.time = t
@@ -91,13 +87,15 @@ class MigrationOperator:
 
             #perform migration steps
             for source in range(len(self.primaries)):
-                #print "  removed from",self.primaries[source],[a.name for a in self.removals[t][source]]
+                #if t%52 == 0:
+                #    print "  removed from",self.primaries[source],[a.name for a in self.removals[t][source]]
                 self.comm.send(self.removals[t][source], dest = self.primaries[source])
                 for a in self.removals[t][source]:  # bookkeeping
                     self.agents[self.primaries[source]].remove(a)
 
             for destination in range(len(self.primaries)):
-                #print "  added to",self.primaries[destination],[a.name for a in self.additions[t][destination]]
+                #if t%52 == 0:
+                #    print "  added to",self.primaries[destination],[a.name for a in self.additions[t][destination]]
                 self.comm.send(self.additions[t][destination], dest = self.primaries[destination])
                 for a in self.additions[t][destination]:  # bookkeeping
                     self.agents[self.primaries[destination]].append(a)
