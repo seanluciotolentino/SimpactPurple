@@ -275,9 +275,9 @@ class CommunityDistributed(simpactpurple.Community):
                 agent = self.agents[removed.name]
                 
                 #save agent's partners for their return
-                partners = self.network.edges(agent)
-                if len(partners)>0:
-                    self.past_partners[agent.name] = partners[0][1]
+                #partners = self.network.edges(agent)
+                #if len(partners)>0:
+                #    self.past_partners[agent.name] = partners[0][1]
                 
                 #send remove to grid queue in addition to time op remove
                 if agent.partition is not self.rank:
@@ -294,10 +294,10 @@ class CommunityDistributed(simpactpurple.Community):
             for agent in additions:
                 self.add_to_simulation(agent)
                 #add any past relationships
-                if agent.name in self.past_partners:
-                    past_partner = self.past_partners[agent.name]
-                    simpactpurple.Operators.RelationshipOperator.form_relationship(self.relationship_operator, agent, past_partner)
-                    del self.past_partners[agent.name]
+                #if agent.name in self.past_partners:
+                #    past_partner = self.past_partners[agent.name]
+                #    simpactpurple.Operators.RelationshipOperator.form_relationship(self.relationship_operator, agent, past_partner)
+                #    del self.past_partners[agent.name]
 
             self.migration = True          
             

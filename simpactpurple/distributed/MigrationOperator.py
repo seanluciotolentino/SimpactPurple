@@ -70,7 +70,7 @@ class MigrationOperator:
                 
         #transform gravity matrix into probability and transition matrix
         self.gravity = np.matrix(self.gravity)
-        probabilities = self.gravity / np.transpose(np.sum(self.gravity, axis=1))
+        probabilities = self.gravity / np.sum(self.gravity, axis=0)
         self.transition = np.cumsum(probabilities, axis=0)
         
     def run(self):

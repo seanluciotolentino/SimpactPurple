@@ -7,93 +7,60 @@ Created on Tue Oct 15 11:14:02 2013
 A script which uses MPI (mpi4py) to overlook several community simulations.  This
 is the initial test script for proof of concept.
 
+
+Migration info from StatsSA:
+
+http://www.statssa.gov.za/publications/P03014/P030142011.pdf (page 26)
+matrix([[5158316,	40152,	10566,	5155,	9221,	5039,	50694,	4759,	3381],	
+        [170829,	6250135,	5081,	15542,	73831,	32341,	117964,	12001,	8877],	
+        [17577,	4077,	1054841,	8559,	5708,	11478,	16019,	4202,	1907],	
+        [12644,	8155,	7103,	2524282,	8881,	24090,	74387,	10859,	5283],	
+        [21857,	19178,	2437,	11481,	9812129,	8655,	184337,	28904,	4719],	
+        [6013,	3085,	17000,	9917,	3882,	3146255,	103550,	8495,	14066],	
+        [74915,	40161,	9446,	31455,	55620,	75260,	10416258,	61269,	54145],	
+        [7256,	3390,	1932,	5032,	12511,	13091,	122578,	3723843,	25299],	
+        [7826,	2742,	1847,	5481,	4574,	26826,	283495,	39492,	5088084]])
+
+#some commands that might helpful:
+gravity = gravity.astype(float)
+probabilities = gravity / np.sum(gravity, axis=0)
+np.set_printoptions(precision=3, linewidth=150)
+
+
 """
 
 from mpi4py import MPI
 import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
 import simpactpurple.distributed.MigrationOperator as MigrationOperator
-import sys
 import simpactpurple.GraphsAndData as gad
 import numpy as np
-import numpy.random as random
 
-def distance_between(p1, p2):
-    return np.sqrt(((p1[0]+p2[0])**2)+((p1[1]+p2[1])**2))
-
-def load_data(kind="P"):
-    f = open('poplatlong.csv','r')
-    pop = {}
-    loc = {}
-    for line in f:
-        line = line.strip().split(",")
-        if line[0] != kind:
-            continue
-        else:
-            place = line[2]
-            pop[place] = line[4]
-            loc[place] = map(float,line[5:])
-            print place,"at",loc[place]
-            
-    dist = [[distance_between(loc[p1], loc[p2]) for p1 in loc] for p2 in loc]
-    return dist, pop.values()
-
-def run(pop_power, dist_power, when):
-    #use parameters in the model:
-    #dist = np.matrix([[1,3,5],[3,1,4],[5,4,1]])
-    dist = np.matrix([[1,5,12],[5,1,5],[12,5,1]])
-    pop = np.matrix(population[1:])
-    gravity, probabilities, transition = MigrationOperator.calc_gravity(pop, dist, pop_power, dist_power)
-    timing = np.matrix([[1,3,5],[3,1,4],[5,4,1]])*5  # make a constant
-    
+def run(gravity, power):
     #assign roles via ranks
     if rank == 0: #Migration Operator
+        gravity = np.power(gravity, power)
         mo = MigrationOperator.MigrationOperator(comm, primaries, gravity, timing)
         mo.NUMBER_OF_YEARS = time
-        mo.non_migrating_sex = 2
         mo.run()
         
         #grab messages from communities
-        #print "timing",timing
-        #print "probabilities",probabilities
-        prev = []
-        num_rela = []
-        for r in [1,2,3]:
-            #prev.append(round(comm.recv(source = r),3))
-            prev.append(comm.recv(source = r))
-            num_rela.append(round(comm.recv(source = r),3))
-        seed_time = comm.recv(source=3)
-        
-            
-        #print pop_power,dist_power,when," ".join(map(str,prev)), " ".join(map(str,num_rela)),
-        print pop_power,dist_power,when," ".join(map(lambda p: " ".join(map(str,p)),prev)),
-        print " ".join(map(str,num_rela)),
-        print " ".join([str(len(mo.removals[1557][s])) for s in range(3)]),
-        print " ".join([str(len(mo.additions[1557][d])) for d in range(3)]),
-        print seed_time
+        prev = [comm.recv(source = r) for r in primaries]
+        print power," ".join(map(lambda p: " ".join(map(str,p)),prev))
     elif rank in primaries:
         s = CommunityDistributed.CommunityDistributed(comm, rank, [], migration = True)
-        s.INITIAL_POPULATION = population[rank]
-        s.INITIAL_PREVALENCE = initial_prevalence[rank]
+        s.INITIAL_POPULATION = int(population[rank-1])
+        s.INITIAL_PREVALENCE = initial_prevalence[rank-1]
         s.SEED_TIME = 0
         s.NUMBER_OF_YEARS = time
-                
-        #change some parameters
         #s.DURATIONS = lambda a1, a2: 10
-        s.SEX = lambda: int(random.random() > 0.35)
+        #s.SEX = lambda: int(random.random() > 0.35)
         s.INFECTIVITY = 0.01
-        s.PROBABILITY_MULTIPLIER=0
-        
-        #run the model
+        s.PROBABILITY_MULTIPLIER = 0
         s.run()
         
         #generate some output to be analyzed
-        #gad.prevalence_graph(s,filename="prevalence{0}.png".format(rank))
-        #gad.demographics_graph(s,box_size=5,num_boxes=8, filename='demographics{0}.png'.format(rank))
         if s.is_primary:
             comm.send(gad.prevalence_data(s)[::52*5], dest = 0)
-            comm.send(len(s.relationships), dest = 0)
-        if rank == 3:
-            comm.send(min([a.time_of_infection for a in s.agents.values()]), dest = 0)
     else:
         master = rank%(comm.Get_size()/16)
         master = [3,master][master>0]
@@ -107,22 +74,28 @@ rank = comm.Get_rank()
 
 #simulation parameters
 time = 31
-pop = 500
-runs = 100
+num_runs = 20
+num_communities = 3
+fraction = 1.0 / 1000
 
 #cluster set up
-population = np.array([0, 3, 3, 1])*pop #note that population size for non-primary doesn't matter
-initial_prevalence = [0, 0.05, 0.05, 0]
+migration = np.loadtxt('migration.csv', delimiter=",")  # place this in your neon home directory
+gravity = migration[:3,:3]
+population = np.array([migration[i,i] for i in range(num_communities)])*fraction
+initial_prevalence = [0.05, 0, 0]
 primaries = [1, 2, 3]
+timing = np.matrix([[1,3,5],[3,1,4],[5,4,1]])*5  # make a constant
 
-if len(sys.argv)<4:
-    #do the runs
-    for i in range(runs):
-        #generate random parameters and share
-        who = 6.0*round(np.random.rand(), 2)
-        where =  6.0*round(np.random.rand(), 2) #0.5 #
-        when = random.choice(range(20,60,5)) #25 # 
-            
-        run(who, where, when)
-else:
-    run(float(sys.argv[1]),float(sys.argv[2]),int(sys.argv[3]))
+#run it
+for i in range(num_runs):            
+    #normal migration
+    run(gravity, 1.0)
+    
+    #less migration
+    run(gravity, 2.0)
+    
+    #more migration
+    run(gravity, 0.5)
+    
+    #a lot more migration
+    run(gravity, 0.1)
