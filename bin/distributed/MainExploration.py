@@ -113,8 +113,17 @@ for i in range(num_runs):
         parameter2 = random.choice(timing_choices)
         timing = timing*parameter2
         
-        parameter3 = random.choice(prevalence_choices)
-        initial_prevalence = prevalence_scenarios[prevalence_choices[parameter3]] / population        
+        # MO picks prevalence scenario
+        if rank == 0:    
+            parameter3 = random.choice(prevalence_choices)
+            initial_prevalence = prevalence_scenarios[prevalence_choices[parameter3]] / population
+            for r in primaries:
+                comm.send(parameter3, dest=r)
+        elif rank in primaries:
+            parameter3 = comm.recv(source=0)
+            initial_prevalence = prevalence_scenarios[prevalence_choices[parameter3]] / population
+        else:
+            pass #queue servers don't need parameter
         
         parameter = " ".join(map(str, [parameter1, parameter2, parameter3]))
     
