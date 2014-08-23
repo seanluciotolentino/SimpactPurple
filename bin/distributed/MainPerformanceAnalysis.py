@@ -20,16 +20,13 @@ import random
 
 def run():
     #assign roles via ranks
-    if rank == 0: #Migration Operator
-        mo = MigrationOperator.MigrationOperator(comm, primaries, gravity, timing)
-        mo.run()
-    elif rank in primaries:
+    if rank in primaries:
         others = [[], [rank+3]][size==96]
-        s = CommunityDistributed.CommunityDistributed(comm, rank, others, migration = True)
+        s = CommunityDistributed.CommunityDistributed(comm, rank, others, migrating_sex = 0)
         s.INITIAL_POPULATION = int(population[rank-1])
         s.run()
     elif rank in auxiliaries and size == 96:
-        s = CommunityDistributed.CommunityDistributed(comm, rank-3, [rank-3], migration = True)
+        s = CommunityDistributed.CommunityDistributed(comm, rank-3, [rank-3], migrating_sex = 0)
         s.run()
     else:
         master = rank%(size/16)

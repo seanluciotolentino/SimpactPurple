@@ -45,28 +45,21 @@ class RelationshipOperator(Operators.RelationshipOperator):
         individuals are randomly selected to enter this main queue or the
         main queue of another community.
         """
-        #gq = self.master.grid_queues.keys()[random.randint(len(self.master.grid_queues))]
         gq = random.choice(self.master.grid_queues.keys())
         self.master.pipes[gq].send("recruit")
         agent_name = self.master.pipes[gq].recv()
         if agent_name is not None:
             agent = self.master.agents[agent_name]
             
+            if not self.master.active(agent):
+                return 0
+            
             #send fraction of agents to other community
             if np.random.random() < 1.0/self.master.size:
                 self.master.main_queue.push(gq, agent)  # keep agent
             else:
-                #other = self.master.others[random.randint(len(self.master.others))]
                 other = random.choice(self.master.others)
                 self.master.comm.send(('push',agent),dest=other)
-
-            #send fraction based on transition matrix
-            #rand = np.random.random()
-            #rank = [int(v) for v in rand < self.master.transition[:,self.master.rank]].index(1)
-            #if rank == self.master.rank:
-            #    self.master.main_queue.push(gq, agent)
-            #else:
-            #    self.master.comm.send(('push',agent),dest=rank)
             return 1
         else:
             return 0
@@ -245,7 +238,6 @@ class InfectionOperator(Operators.InfectionOperator):
     def __init__(self, master):
         self.master = master
         self.infected_agents = []
-        self.number_infected = []
 
     def step(self):
         """
@@ -255,26 +247,31 @@ class InfectionOperator(Operators.InfectionOperator):
         """
         if not self.master.is_primary:
             return
-        self.number_infected.append(len(self.infected_agents))
+        
         old_infected = len(self.infected_agents)
         #Go through edges and flip coin for infections
         now = self.master.time
         for agent in self.infected_agents:
+            if not self.master.active(agent):
+                continue  # skip inactive (migrating) agents
             relationships = self.master.network.edges(agent)
             for r in relationships:
                 if (r[0].time_of_infection < now and r[1].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     self.infected_agents.append(r[1])
                     r[1].time_of_infection = now 
-                    #if r[0].primary != r[1].primary:
-                    #    print self.master.time, "infection:",r[0],"->",r[1]
                     continue
                 if (r[1].time_of_infection < now and r[0].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     self.infected_agents.append(r[0])
                     r[0].time_of_infection = now
-                    #if r[0].primary != r[1].primary:
-                    #    print self.master.time, "infection:",r[1],"->",r[0]
+                    
+        # send infection updates
         if self.master.migration:
-            self.master.comm.send(("infections",[a.name for a in self.infected_agents[old_infected:]]), dest = 0)
+            for agent in self.infected_agents[old_infected:]:
+                other_place = [agent.home, agent.away][agent.home == self.master.rank]
+                self.master.comm.send(("infection", agent.name), dest = other_place)
+            for c in self.master.other_primaries:
+                self.master.comm.send(("done","performing infections"), dest=c)
+                self.master.listen("infection update", c)
 
     def perform_initial_infections(self, initial_prevalence, seed_time):
         """
