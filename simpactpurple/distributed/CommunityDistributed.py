@@ -253,35 +253,16 @@ class CommunityDistributed(simpactpurple.Community):
         print
 
     def run(self, timing=False):
+        """
+        In addition to default run, send a 'done' message to
+        QueueServers.
+        """
         simpactpurple.Community.run(self)
+        
         #send "done" to all grid queue ranks
         slots_per_node = 16  # 16 on neon, 12 on helium
         total_communities = self.comm.Get_size()/slots_per_node
         grid_queue_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
         for r in grid_queue_ranks:
             self.comm.send('done', dest = r)
-        
-    def step(self):
-        """
-        Take a single time step (one week) in the simulation. 
-        """
-        #1. Proceede normally
-        simpactpurple.Community.step(self)
-        
-        #2. Migration operations
-        if not self.migration:
-            return
-
-        if self.is_primary:
-            self.migration = False  # temp disable 'add' and 'remove' messages to MO
-            
-            self.comm.send(('done','updating'), dest = 0)
-            
-           
-            self.migration = True          
-            
-            #0.3 finish
-            self.broadcast(('done','migration updating'))
-        else:
-            self.listen('migration updates', self.primary)
 

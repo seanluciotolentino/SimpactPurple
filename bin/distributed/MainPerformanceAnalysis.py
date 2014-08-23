@@ -25,6 +25,7 @@ def run():
         s = CommunityDistributed.CommunityDistributed(comm, rank, others, migrating_sex = 0)
         s.INITIAL_POPULATION = int(population[rank-1])
         s.run()
+        gad.prevalence_graph(s, filename='prevalence{0}.png'.format(rank))
     elif rank in auxiliaries and size == 96:
         s = CommunityDistributed.CommunityDistributed(comm, rank-3, [rank-3], migrating_sex = 0)
         s.run()
