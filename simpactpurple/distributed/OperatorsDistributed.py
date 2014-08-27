@@ -166,13 +166,14 @@ class TimeOperator(Operators.TimeOperator):
         if self.master.is_primary:
             # sends agents back to correct grid queues
             for r in self.master.relationships_ending_at[self.master.time]:
-                try:
-                    self.master.relationship_operator.dissolve_relationship(r[0], r[1])
-                except:  # must have been dissolved by a migration
-                    if r[0] in self.master.network:
-                        self.master.add_to_grid_queue(r[0])
-                    elif r[1] in self.master.network:
-                        self.master.add_to_grid_queue(r[1])
+                self.master.relationship_operator.dissolve_relationship(r[0], r[1])
+#                try:
+#                    self.master.relationship_operator.dissolve_relationship(r[0], r[1])
+#                except:  # must have been dissolved by a migration
+#                    if r[0] in self.master.network:
+#                        self.master.add_to_grid_queue(r[0])
+#                    elif r[1] in self.master.network:
+#                        self.master.add_to_grid_queue(r[1])
             self.master.broadcast(('done','updating relationships'))
         else:
             # recv agents and add to right grid queue
@@ -190,6 +191,9 @@ class TimeOperator(Operators.TimeOperator):
             msg = self.master.pipes[queue].recv()
             while msg != 'done':
                 agent = self.master.agents[msg]
+                if self.master.migration and agent.home != self.master.rank:
+                    msg = self.master.pipes[queue].recv()
+                    continue
                 if self.master.is_primary:
                     self.remove(agent)
                     self.replace(agent)
@@ -214,16 +218,27 @@ class TimeOperator(Operators.TimeOperator):
         else:
             self.master.comm.send(('done','removing oldest'), dest = self.master.primary)
             
+        #4 list for new migrants
+        if self.master.is_primary and self.master.migration:
+            for p in self.master.other_primaries:
+                self.master.comm.send(('done','sending new migrants'), dest = p)
+            for p in self.master.other_primaries:
+                self.master.listen('new migrating agents',p)
+            
                 
     def remove(self, agent):
         """
         Function for removing agents from the distributed simulation.
         """
         #Update migration variables
-        if self.master.migration:
-            agent.attributes["MIGRATION"].append((self.master.time, self.master.rank, 0))
-            self.master.comm.send(('remove',agent.name), dest = 0)
-        #essential removes            
+#        if self.master.migration:
+#            agent.attributes["MIGRATION"].append((self.master.time, self.master.rank, 0))
+#            self.master.comm.send(('remove',agent.name), dest = 0)
+        #essential removes
+        if agent.home != agent.away:
+            print self.master.rank,"removing", agent.name,"|home",agent.home,"|away",agent.away, "| time", self.master.time,"|GQ",agent.grid_queue
+            if agent.home != self.master.rank:
+                print "****"
         agent.grid_queue = None
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
@@ -254,7 +269,18 @@ class InfectionOperator(Operators.InfectionOperator):
         for agent in self.infected_agents:
             if not self.master.active(agent):
                 continue  # skip inactive (migrating) agents
-            relationships = self.master.network.edges(agent)
+            try:
+                relationships = self.master.network.edges(agent)
+            except:
+                print "agent",agent.name,"not in network"
+                print "  time",self.master.time
+                print "  rank", self.master.rank
+                print "  agent.home",agent.home
+                print "  agent.away", agent.away
+                print "  agent.added",agent.attributes["TIME_ADDED"]
+                print "  agent.removed",agent.attributes["TIME_REMOVED"]
+                print "  agent.infected",agent.time_of_infection
+                raise ValueError
             for r in relationships:
                 if (r[0].time_of_infection < now and r[1].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     self.infected_agents.append(r[1])
@@ -267,10 +293,14 @@ class InfectionOperator(Operators.InfectionOperator):
         # send infection updates
         if self.master.migration:
             for agent in self.infected_agents[old_infected:]:
+                if agent.home == agent.away:
+                    continue
                 other_place = [agent.home, agent.away][agent.home == self.master.rank]
+                #print self.master.rank,"sending infection: agent", agent.name, "dest", other_place
                 self.master.comm.send(("infection", agent.name), dest = other_place)
             for c in self.master.other_primaries:
                 self.master.comm.send(("done","performing infections"), dest=c)
+            for c in self.master.other_primaries:
                 self.master.listen("infection update", c)
 
     def perform_initial_infections(self, initial_prevalence, seed_time):
@@ -287,6 +317,14 @@ class InfectionOperator(Operators.InfectionOperator):
             agent.time_of_infection = seed_time
             self.infected_agents.append(agent)
         
+        #send initial infections to other communities
         if self.master.migration:
-            self.master.comm.send(("infections",[a.name for a in self.infected_agents]), dest = 0)
-
+            for agent in self.infected_agents:
+                if agent.home == agent.away:
+                    continue
+                other_place = [agent.home, agent.away][agent.home == self.master.rank]
+                #print self.master.rank,"sending infection: agent", agent.name, "dest", other_place
+                self.master.comm.send(("infection", agent.name), dest = other_place)
+            for c in self.master.other_primaries:
+                self.master.comm.send(("done","performing infections"), dest=c)
+                self.master.listen("infection update", c)

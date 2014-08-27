@@ -93,6 +93,11 @@ class CommunityDistributed(simpactpurple.Community):
         if self.is_primary:
             simpactpurple.Community.make_population(self, size)
             if self.time < 0:
+                if self.migration:
+                    for p in self.other_primaries:
+                        self.comm.send(('done','sending migrants'), dest = p)
+                    for p in self.other_primaries:
+                        self.listen('migrating agents',p)
                 self.broadcast(('done','making population'))
         else:
             self.listen('initial population', self.primary)
@@ -123,8 +128,14 @@ class CommunityDistributed(simpactpurple.Community):
         if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
         self.add_to_grid_queue(agent)      
-        if self.migration and not hasattr(agent, 'away'):
-            self.add_migration(agent)
+        if self.migration :
+            if not hasattr(agent, 'away'):
+                self.add_migration(agent)
+                print self.rank, "home add to simulation",agent.name,"|home",agent.home,"|away",agent.away,"|rank",self.rank,"|gq", agent.grid_queue
+            else:
+                agent.dnp = -1 #force migrating agents not to have partners
+                print self.rank, "away add to simulation",agent.name,"|home",agent.home,"|away",agent.away,"|rank",self.rank,"|gq", agent.grid_queue
+        
         
     def add_to_grid_queue(self, agent):
         """
@@ -148,18 +159,20 @@ class CommunityDistributed(simpactpurple.Community):
             agent.away = [int(v) for v in np.random.random() < self.transition[:,self.rank]].index(1)
             
         if agent.home != agent.away:
-            self.comm.send('add_to_grid_queue',agent))
+            agent.gq_home = agent.grid_queue  #DEBUG
+            self.comm.send(('add_migration',agent), dest=agent.away)
+            #self.comm.send(('add_to_grid_queue',agent), dest=agent.away)
             
-    def active(agent):
+    def active(self, agent):
         #check active/inactive status for migration
-        if not self.migration:
+        if not self.migration or agent.home == agent.away:
             return True
-        home_time = self.master.timing[agent.home,agent.home]
-        away_time = self.master.timing[agent.away,agent.home]
-        if self.master.rank == agent.home:
-            return self.master.time/(home_time+away_time) <= agent.home_time:
+        home_time = self.timing[agent.home,agent.home]
+        away_time = self.timing[agent.away,agent.home]
+        if self.rank == agent.home:
+            return self.time%(home_time+away_time) <= home_time
         else: #agent is away
-            return self.master.time/(home_time+away_time) > agent.home_time:
+            return self.time%(home_time+away_time) > home_time
             
     def update_recruiting(self, rate):
         """
@@ -207,10 +220,10 @@ class CommunityDistributed(simpactpurple.Community):
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
+        #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
         msg, data = self.comm.recv(source = from_whom)  # data depends on msg
         while msg != 'done':
-            print "  > listening on",self.rank,"| msg:",msg,"data:",data
+            #print "  > listening on",self.rank,"| msg:",msg,"data:",data
             
             #parse message and act            
             if msg == 'add_to_simulation': # primary to non-primary
@@ -222,8 +235,21 @@ class CommunityDistributed(simpactpurple.Community):
             elif msg == 'add_migration':
                 agent = data
                 self.add_to_simulation(agent)
+                agent.gq_away = agent.grid_queue  #DEBUG
             elif msg == 'infection':
                 agent = self.agents[data]
+                if agent.attributes["TIME_REMOVED"] < np.Inf:
+                    print "agent",agent.name,"infected after removal"
+                    print "  time",self.time
+                    print "  rank", self.rank
+                    print "  agent.home",agent.home
+                    print "  agent.away", agent.away
+                    print "  agent.added",agent.attributes["TIME_ADDED"]
+                    print "  agent.removed",agent.attributes["TIME_REMOVED"]
+                    print "  agent.infected",agent.time_of_infection
+                    print "  agent.gq_home", agent.gq_home
+                    print "  agent.gq_away", agent.gq_away
+                    raise ValueError
                 agent.time_of_infection = self.time
                 self.infection_operator.infected_agents.append(agent)
             elif msg == 'remove_from_simulation': #non-primary to primary
@@ -246,11 +272,11 @@ class CommunityDistributed(simpactpurple.Community):
                 agent = data  # data is agent object here
                 self.main_queue.push(agent.grid_queue, agent)
             else:
-                raise Exception,"Unknown msg received: " + msg
+                raise Exception,"Unknown msg received: " + msg + " data: " + str(data)
             
             msg, data = self.comm.recv(source = from_whom)  # listen for next message
-        print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
-        print
+        #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
+        #print
 
     def run(self, timing=False):
         """
@@ -265,4 +291,7 @@ class CommunityDistributed(simpactpurple.Community):
         grid_queue_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
         for r in grid_queue_ranks:
             self.comm.send('done', dest = r)
-
+        
+#    def step(self):
+#        simpactpurple.Community.step(self)
+#        print self.rank, self.time

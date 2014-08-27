@@ -22,16 +22,22 @@ def run():
     #assign roles via ranks
     if rank in primaries:
         others = [[], [rank+3]][size==96]
-        s = CommunityDistributed.CommunityDistributed(comm, rank, others, migrating_sex = 0)
-        s.INITIAL_POPULATION = int(population[rank-1])
+        op = [p for p in primaries if p != rank]
+        print rank,"starting distributed community. others", others, "op", op
+        s = CommunityDistributed.CommunityDistributed(comm, rank, others, 
+                    other_primaries = op, timing = timing, gravity = gravity)
+        s.INITIAL_POPULATION = pop
+        s.NUMBER_OF_YEARS = 30
+        s.INITIAL_PREVALENCE = initial_prevalence[rank]
+        s.SEED_TIME = 0
         s.run()
         gad.prevalence_graph(s, filename='prevalence{0}.png'.format(rank))
     elif rank in auxiliaries and size == 96:
-        s = CommunityDistributed.CommunityDistributed(comm, rank-3, [rank-3], migrating_sex = 0)
+        s = CommunityDistributed.CommunityDistributed(comm, rank-3, [rank-3], 
+                    other_primaries = op, timing = timing, gravity = gravity)
         s.run()
     else:
         master = rank%(size/16)
-        master = [size/16,master][master>0]
         CommunityDistributed.ServeQueue(master, comm)
 
 #MPI variables
@@ -42,14 +48,15 @@ size = comm.Get_size()
 
 #cluster set up
 gravity = np.loadtxt('migration.csv', delimiter=",")[:3,:3]  # place this in your neon home directory
-initial_prevalence = [0.01, 0.0, 0.0]
-primaries = [1, 2, 3]
-auxiliaries = [4, 5, 6]
+gravity = np.power(gravity, 0.01) # increase migration dramatically for debugging
+initial_prevalence = [0.1, 0.0, 0.0]
+primaries = [0, 1, 2]
+auxiliaries = [3, 4, 5]
 timing = np.matrix([[1,5,5],[5,1,5],[5,5,1]])*3
 
-for pop in range(100, 501, 100):
-    population = np.array([1, 1, 1])*pop
+for pop in range(1000, 1001, 100):
     start = time.time()
     run()
     if rank == 0:
         print size, pop, time.time() - start
+        

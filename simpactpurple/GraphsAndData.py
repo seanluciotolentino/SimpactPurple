@@ -217,12 +217,21 @@ def infection_data(s):
     num_weeks = s.time
     counts = [0]*num_weeks
     agents = s.agents.values()
+    migration = hasattr(s,'migration') and s.migration
     for agent in agents:
         if agent.time_of_infection >= np.Inf: continue
         start = int(agent.time_of_infection)
         end = int(min(num_weeks, agent.attributes["TIME_REMOVED"]))
+#        if migration:
+#            home_time = s.timing[agent.home,agent.home]
+#            away_time = s.timing[agent.away,agent.home]
         for t in range(start, end):
+            if migration and agent.home != s.rank:
+                break
+#                if agent.home != agent.away and t%(home_time+away_time) > home_time:
+#                    continue
             counts[t]+=1.0
+    s.time = num_weeks
     return counts
 
 def population_data(s):
@@ -232,11 +241,25 @@ def population_data(s):
     num_weeks = s.time
     counts = [0]*num_weeks
     agents = s.agents.values()
+    migration = hasattr(s,'migration') and s.migration
+    #print "===population data==="
+    #print "timing", s.timing
     for agent in agents:
         start = max(0, agent.attributes["TIME_ADDED"])
         end = min(num_weeks,agent.attributes["TIME_REMOVED"])
+#        if migration:
+#            home_time = s.timing[agent.home,agent.home]
+#            away_time = s.timing[agent.away,agent.home]
+        #print agent.name,"| start",start,"| end", end, "| home time", home_time, "| away time", away_time, "| home", agent.home, "| away", agent.away,"| sex", agent.sex
         for t in range(start, end):
+            if migration and agent.home != s.rank:
+                break
+                #if agent.home != agent.away and t%(home_time+away_time) > home_time:
+                #    #print " -> inactive:", t%(home_time+away_time)
+                #    continue
+            #print " -> +1"
             counts[t]+=1.0
+    s.time = num_weeks
     return counts
 
 def prevalence_data(s):
@@ -280,6 +303,7 @@ def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
     use.
     """
     data = []
+    temp_time = s.time
     now = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS))) #determine if we are at the end of the simulation or in the middle
     for t in range(0,now,time_granularity):
         demographic = [0]*num_boxes; #create an list with the number of slots we want
@@ -294,27 +318,16 @@ def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
                 continue  # skip if the agent wasn't born yet or has been removed
                 
             if hasattr(s,'migration') and s.migration:
-                #find nearest migration timestamp
-                before_time = -np.inf
-                before = None           
-                for timestamp in agent.attributes["MIGRATION"]:
-                    if timestamp[0] > before_time and timestamp[0] <= t:
-                        before_time = timestamp[0]
-                        before = timestamp
-
-                #if didn't migrate here in most previous timestep
-                if before[2] is not s.rank:
-                    #print "time",t,"before",before,"migration",agent.attributes["MIGRATION"]
+                s.time = t
+                if not s.active(agent):
                     continue
-                
-                    
-
             age_at_t /= 52  # convert back to years
             level = min(num_boxes-1,int(np.floor( age_at_t / box_size)));
             demographic[level] += 1;  # ...and add them to their delineations level
 
         #add the delineations to the data
         data.append(demographic)
+    s.time = temp_time
     return data
 
 def demographics_graph(s,time_granularity = 4,num_boxes = 7,box_size = 10, filename = None):
