@@ -125,13 +125,8 @@ class CommunityDistributed(simpactpurple.Community):
         agent.partition = partitions[random.randint(len(partitions))]
         
         # add agent to simulation
-        if self.migration :
-            if not hasattr(agent, 'away'):
-                self.add_migration(agent)
-                print self.rank, "home add to simulation",agent.name,"|home",agent.home,"|away",agent.away,"|rank",self.rank,"|gq", agent.grid_queue
-            else:
-                #pass
-                print self.rank, "away add to simulation",agent.name,"|home",agent.home,"|away",agent.away,"|rank",self.rank,"|gq", agent.grid_queue
+        if self.migration and not hasattr(agent, 'away'):
+            self.add_migration(agent)
         if agent.partition is not self.rank:
             self.comm.send(('add_to_simulation',agent), dest = agent.partition)
         self.add_to_grid_queue(agent)
@@ -219,10 +214,10 @@ class CommunityDistributed(simpactpurple.Community):
         Method for receiving messages from other communities and responding
         accordingly.
         """
-        print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
+        #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
         msg, data = self.comm.recv(source = from_whom)  # data depends on msg
         while msg != 'done':
-            print "  > listening on",self.rank,"| msg:",msg,"data:",data
+            #print "  > listening on",self.rank,"| msg:",msg,"data:",data
             
             #parse message and act            
             if msg == 'add_to_simulation': # primary to non-primary
@@ -237,17 +232,6 @@ class CommunityDistributed(simpactpurple.Community):
                 agent.gq_away = agent.grid_queue  #DEBUG
             elif msg == 'infection':
                 agent = self.agents[data]
-                if agent.attributes["TIME_REMOVED"] < np.Inf:
-                    print "agent",agent.name,"infected after removal"
-                    print "  time",self.time
-                    print "  rank", self.rank
-                    print "  agent.home",agent.home
-                    print "  agent.away", agent.away
-                    print "  agent.added",agent.attributes["TIME_ADDED"]
-                    print "  agent.removed",agent.attributes["TIME_REMOVED"]
-                    print "  agent.infected",agent.time_of_infection
-                    print "  agent.gq_home", agent.gq_home
-                    raise ValueError
                 agent.time_of_infection = self.time
                 self.infection_operator.infected_agents.append(agent)
             elif msg == 'remove_from_simulation': #non-primary to primary
@@ -273,8 +257,8 @@ class CommunityDistributed(simpactpurple.Community):
                 raise Exception,"Unknown msg received: " + msg + " data: " + str(data)
             
             msg, data = self.comm.recv(source = from_whom)  # listen for next message
-        print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
-        print
+        #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
+        #print
 
     def run(self, timing=False):
         """
@@ -289,25 +273,4 @@ class CommunityDistributed(simpactpurple.Community):
         grid_queue_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
         for r in grid_queue_ranks:
             self.comm.send('done', dest = r)
-        
-    def step(self):
-        """
-        Take a single time step (one week) in the simulation. 
-        """
-        print "++++++",self.time,"++++++++"        
-        
-        #1. Time progresses
-        print "v--- Time Operator ---v"
-        self.time_operator.step()
-        print "^--- Time Operator ---^"
-        print
-        #2. Form and dissolve relationships"
-        print "v--- Relationship Operator ---v"
-        self.relationship_operator.step()
-        print "^--- Relationship Operator ---^"
-        print
-        #3. HIV transmission
-        print "v--- Infection Operator ---v"
-        self.infection_operator.step()
-        print "^--- Infection Operator ---^"
-        print
+            
