@@ -167,6 +167,7 @@ class TimeOperator(Operators.TimeOperator):
             # sends agents back to correct grid queues
             for r in self.master.relationships_ending_at[self.master.time]:
                 self.master.relationship_operator.dissolve_relationship(r[0], r[1])
+                print " ++ ",self.master.rank, "dissolving relationship:", r[0].name, "and", r[1].name,"| time", self.master.time
 #                try:
 #                    self.master.relationship_operator.dissolve_relationship(r[0], r[1])
 #                except:  # must have been dissolved by a migration
@@ -191,14 +192,13 @@ class TimeOperator(Operators.TimeOperator):
             msg = self.master.pipes[queue].recv()
             while msg != 'done':
                 agent = self.master.agents[msg]
-                if self.master.migration and agent.home != self.master.rank:
-                    msg = self.master.pipes[queue].recv()
-                    continue
                 if self.master.is_primary:
                     self.remove(agent)
-                    self.replace(agent)
                 else:
                     self.master.comm.send(('remove_from_simulation',agent.name), dest = self.master.primary)
+                print " ** ",self.master.rank, "removing", agent.name, "infected at", agent.time_of_infection,"| time", self.master.time
+                if self.master.migration and agent.home == self.master.rank:
+                    self.replace(agent)
                 msg = self.master.pipes[queue].recv()
                 
         #2.3. Terminate old grid queue if necessary
@@ -235,10 +235,11 @@ class TimeOperator(Operators.TimeOperator):
 #            agent.attributes["MIGRATION"].append((self.master.time, self.master.rank, 0))
 #            self.master.comm.send(('remove',agent.name), dest = 0)
         #essential removes
-        if agent.home != agent.away:
-            print self.master.rank,"removing", agent.name,"|home",agent.home,"|away",agent.away, "| time", self.master.time,"|GQ",agent.grid_queue
-            if agent.home != self.master.rank:
-                print "****"
+#        if agent.home != agent.away:
+#            print self.master.rank,"removing", agent.name,"|home",agent.home,"|away",agent.away, "| time", self.master.time,"|GQ",agent.grid_queue
+#            if agent.home != self.master.rank:
+#                print "****"
+#        print self.master.rank,"removing", agent.name,"|home",agent.home,"|away",agent.away, "| time", self.master.time,"|GQ",agent.grid_queue                
         agent.grid_queue = None
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
@@ -272,7 +273,7 @@ class InfectionOperator(Operators.InfectionOperator):
             try:
                 relationships = self.master.network.edges(agent)
             except:
-                print "agent",agent.name,"not in network"
+                print " agent",agent.name,"not in network"
                 print "  time",self.master.time
                 print "  rank", self.master.rank
                 print "  agent.home",agent.home
@@ -283,16 +284,23 @@ class InfectionOperator(Operators.InfectionOperator):
                 raise ValueError
             for r in relationships:
                 if (r[0].time_of_infection < now and r[1].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
+                    if self.master.migration and not self.master.active(r[1]):
+                        continue
+                    print " !!1 ",self.master.rank, "infection:", r[0].name, "->", r[1].name,"| time", self.master.time
                     self.infected_agents.append(r[1])
                     r[1].time_of_infection = now 
                     continue
                 if (r[1].time_of_infection < now and r[0].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
+                    if self.master.migration and not self.master.active(r[0]):
+                        continue
+                    print " !!2 ",self.master.rank, "infection:", r[1].name, "->", r[0].name,"| time", self.master.time
                     self.infected_agents.append(r[0])
                     r[0].time_of_infection = now
                     
         # send infection updates
         if self.master.migration:
             for agent in self.infected_agents[old_infected:]:
+                #print self.master.rank,"infected agent:", agent.name, "home", agent.home, "away", agent.away
                 if agent.home == agent.away:
                     continue
                 other_place = [agent.home, agent.away][agent.home == self.master.rank]
@@ -312,7 +320,8 @@ class InfectionOperator(Operators.InfectionOperator):
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
         agent = random.choice(self.master.agents.values())
         for i in range(infections):
-            while agent in self.infected_agents:  # avoid duplicates
+            #while agent in self.infected_agents:  # avoid duplicates
+            while agent in self.infected_agents or agent.home != self.master.rank:
                 agent = random.choice(self.master.agents.values())
             agent.time_of_infection = seed_time
             self.infected_agents.append(agent)
@@ -327,4 +336,5 @@ class InfectionOperator(Operators.InfectionOperator):
                 self.master.comm.send(("infection", agent.name), dest = other_place)
             for c in self.master.other_primaries:
                 self.master.comm.send(("done","performing infections"), dest=c)
+            for c in self.master.other_primaries:                
                 self.master.listen("infection update", c)

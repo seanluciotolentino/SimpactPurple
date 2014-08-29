@@ -125,16 +125,19 @@ class RelationshipOperator():
         """
         Forms a relationship between agent1 and agent2.
         """
-        d = self.master.DURATIONS(agent1, agent2)
+        d = np.max((1, self.master.DURATIONS(agent1, agent2))) # relationships must be at least 1 week
 
         #cache the ending time for easier access
         end_time = int(np.min((self.master.time + d, self.master.NUMBER_OF_YEARS*52, 
-                               self.max_weeks+agent1.born, self.max_weeks+agent2.born)))  # time when agent1/2 turns >65 (3380 = 65*52)
+                               self.max_weeks+agent1.born, self.max_weeks+agent2.born)))
         self.master.relationships_ending_at[end_time].append((agent1,agent2))
 
         #add the relationship to data structures
         self.master.relationships.append((agent1, agent2, self.master.time, end_time))
         self.master.network.add_edge(agent1, agent2, {"start":self.master.time, "end": end_time,})
+        #print " ++ ",self.master.rank, "forming relationship:", agent1.name, "and", 
+        #print agent2.name,"|",self.master.time + d, self.master.NUMBER_OF_YEARS*52, 
+        #print self.max_weeks+agent1.born, self.max_weeks+agent2.born,"| time", self.master.time
 
     def dissolve_relationship(self, agent1, agent2):
         """

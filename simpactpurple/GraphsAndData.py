@@ -219,17 +219,13 @@ def infection_data(s):
     agents = s.agents.values()
     migration = hasattr(s,'migration') and s.migration
     for agent in agents:
-        if agent.time_of_infection >= np.Inf: continue
+        if agent.time_of_infection >= np.Inf: 
+            continue
+        if migration and agent.home != s.rank:
+            continue
         start = int(agent.time_of_infection)
         end = int(min(num_weeks, agent.attributes["TIME_REMOVED"]))
-#        if migration:
-#            home_time = s.timing[agent.home,agent.home]
-#            away_time = s.timing[agent.away,agent.home]
         for t in range(start, end):
-            if migration and agent.home != s.rank:
-                break
-#                if agent.home != agent.away and t%(home_time+away_time) > home_time:
-#                    continue
             counts[t]+=1.0
     s.time = num_weeks
     return counts
@@ -245,19 +241,11 @@ def population_data(s):
     #print "===population data==="
     #print "timing", s.timing
     for agent in agents:
+        if migration and agent.home != s.rank:
+            continue
         start = max(0, agent.attributes["TIME_ADDED"])
         end = min(num_weeks,agent.attributes["TIME_REMOVED"])
-#        if migration:
-#            home_time = s.timing[agent.home,agent.home]
-#            away_time = s.timing[agent.away,agent.home]
-        #print agent.name,"| start",start,"| end", end, "| home time", home_time, "| away time", away_time, "| home", agent.home, "| away", agent.away,"| sex", agent.sex
         for t in range(start, end):
-            if migration and agent.home != s.rank:
-                break
-                #if agent.home != agent.away and t%(home_time+away_time) > home_time:
-                #    #print " -> inactive:", t%(home_time+away_time)
-                #    continue
-            #print " -> +1"
             counts[t]+=1.0
     s.time = num_weeks
     return counts
