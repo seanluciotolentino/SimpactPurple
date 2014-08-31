@@ -53,8 +53,7 @@ primaries = [0, 1, 2]
 auxiliaries = [3, 4, 5]
 timing = np.matrix([[1,5,5],[5,1,5],[5,5,1]])*3
 
-#for pop in range(100, 101, 100):
-for pop in [5000]:
+for pop in range(10000, 100001, 10000):
     start = time.time()
     run()
     if rank == 0:

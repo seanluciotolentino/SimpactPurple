@@ -103,11 +103,11 @@ class RelationshipOperator():
         pq = Queue.PriorityQueue()
         while(matches):
             match = matches.pop()
-            #calc hazard (checking for pre-exisiting edge)
-            hazard = int(not self.master.network.has_edge(suitor, match))\
-                    *self.master.hazard(suitor, match)
+            #calc probability (checking for pre-exisiting edge)
+            probability = int(not self.master.network.has_edge(suitor, match))\
+                    *self.master.probability(suitor, match)
             r = random.random()
-            decision = int(r < hazard)
+            decision = int(r < probability)
             pq.put((-decision, match))
             
         #3.2 Verify acceptance and form the relationship

@@ -41,10 +41,11 @@ class Community():
         self.NUMBER_OF_YEARS = 30
         
         #MODEL OPERATORS
-        #hazard
+        #probabilitiy
         self.PREFERRED_AGE_DIFFERENCE = -0.1
-        self.PROBABILITY_MULTIPLIER = -0.2
+        self.AGE_PROBABILITY_MULTIPLIER = -0.2
         self.PREFERRED_AGE_DIFFERENCE_GROWTH = 0.1
+        self.SB_PROBABILITY_MULTIPLIER = 0
         
         #relationship operator
         self.SEXES = 2
@@ -71,6 +72,7 @@ class Community():
         self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
         self.SEX = lambda: random.randint(self.SEXES)
         self.DNP = lambda: random.power(0.1)*1.5
+        self.SEXUAL_BEHAVIOR = lambda: random.randint(1,5)
         
     def run(self, timing=False):
         """
@@ -149,9 +151,11 @@ class Community():
             gq = GridQueue.GridQueue(self.next_top, self.next_bottom, self.grid_queue_index)
             gq.max_age = self.MAX_AGE
             gq.sex = i  # not used
-            gq.preferred_age_difference = self.PREFERRED_AGE_DIFFERENCE
-            gq.probability_multiplier = self.PROBABILITY_MULTIPLIER
-            gq.preferred_age_difference_growth = self.PREFERRED_AGE_DIFFERENCE_GROWTH
+            gq.PREFERRED_AGE_DIFFERENCE= self.PREFERRED_AGE_DIFFERENCE
+            gq.AGE_PROBABILITY_MULTIPLIER = self.AGE_PROBABILITY_MULTIPLIER
+            gq.PREFERRED_AGE_DIFFERENCE_GROWTH = self.PREFERRED_AGE_DIFFERENCE_GROWTH
+            gq.SB_PROBABILITY_MULTIPLIER = self.SB_PROBABILITY_MULTIPLIER
+            
             self.grid_queues[gq.index] = gq
             self.grid_queue_index+=1
             self.spawn_process_for(gq)  # start a new process for it
@@ -194,6 +198,7 @@ class Community():
             a.born = self.BORN()
             a.sex = self.SEX()
             a.dnp = self.DNP()
+            a.sexual_behavior = self.SEXUAL_BEHAVIOR()
             a.name = len(self.agents)  # not i b/c replacement
             self.add_to_simulation(a)
             
@@ -246,9 +251,9 @@ class Community():
         """
         return (self.time - agent.born)/52.0
 
-    def hazard(self, agent1, agent2, **attributes):
+    def probability(self, agent1, agent2, **attributes):
         """
-        Calculates and returns the hazard of relationship formation between
+        Calculates and returns the probability of relationship formation between
         agent1 and agent2. If *age_difference* or *mean_age* is None (i.e.
         not provided), this function will calculate it. 
         """
@@ -262,9 +267,16 @@ class Community():
             age_difference = agent2_age - agent1_age
             
         pad = (1 - (2*agent1.sex))* self.PREFERRED_AGE_DIFFERENCE  # correct for perspective
-        top = abs(age_difference - (pad*self.PREFERRED_AGE_DIFFERENCE_GROWTH*mean_age) )
-        h = np.exp(self.PROBABILITY_MULTIPLIER * top ) ;
-        return (agent1.sex ^ agent2.sex)*h
+        age_abs = abs(age_difference-(pad*self.PREFERRED_AGE_DIFFERENCE_GROWTH*mean_age))
+        age_probability = np.exp(self.AGE_PROBABILITY_MULTIPLIER*age_abs)
+        
+        sb_abs = abs(agent1.sexual_behavior-agent2.sexual_behavior)
+        sb_probability = np.exp(self.SB_PROBABILITY_MULTIPLIER*sb_abs)
+        p = (agent1.sex ^ agent2.sex)*age_probability*sb_probability
+        #print "name",agent1.name,"age", round(self.age(agent1),2),"sex",agent1.sex,"sb",agent1.sexual_behavior,
+        #print "| name",agent2.name,"age", round(self.age(agent2),2),"sex",agent2.sex,"sb",agent2.sexual_behavior,
+        #print "| age_p = ", round(age_probability,2), "sb_p", round(sb_probability,2), "p", round(p,2)
+        return p
 
     def debug(self):
         print "======================", self.time, "======================="
