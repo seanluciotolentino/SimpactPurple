@@ -16,15 +16,13 @@ import simpactpurple.GraphsAndData as GraphsAndData
 import numpy as np
 import numpy.random as random
 from numpy.random import uniform as uni
-import sys
 
-if len(sys.argv)>=3:
-    n = int(sys.argv[1])  # how many data points to gather -- the larger the better
-    filename = sys.argv[2]
-else:
-    n = 20
-    filename = 'ABCoutput.csv'
-    
+try: 
+    from mpi4py import MPI
+    filename = "ABCoutput_{0}.csv".format(MPI.Get_processor_name())
+except ImportError:
+    filename = "ABCoutput_default.csv"
+   
 def distance(s):
     """
     This is the 2nd distance function developed to be more flexible and reject
@@ -95,13 +93,14 @@ if __name__ == '__main__':
     f.write("distance\n")
     
     #%% 1. Run ABC algorithm
+    n = 1000
     for i in range(n):
         #1.1 Sample and set parameters from prior distribution
         print "---Sample", i,"---"
         s = simpactpurple.Community()
         # set constants
-        s.INITIAL_POPULATION = 1000  # scale this up later?
-        s.NUMBER_OF_YEARS = 15
+        s.INITIAL_POPULATION = 10000  # scale this up later?
+        s.NUMBER_OF_YEARS = 30
         
         # set parameters
         s.probability_multiplier = prior[1]()
