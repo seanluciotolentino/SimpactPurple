@@ -197,10 +197,9 @@ class GridQueue():
             age_difference = attributes['age_difference']
             mean_age = attributes['mean_age']
         else:
-            agent1_age = self.grid_queues[agent1.grid_queue].age()
-            agent2_age = self.grid_queues[agent2.grid_queue].age()
-            mean_age = (agent1_age + agent2_age) / 2.0
-            age_difference = agent2_age - agent1_age
+            suitor_age = self.age_of(agent2)
+            mean_age = (suitor_age + self.age()) / 2
+            age_difference = suitor_age - self.age()
             
         pad = (1 - (2*agent1.sex))* self.PREFERRED_AGE_DIFFERENCE  # correct for perspective
         age_abs = abs(age_difference-(pad*self.PREFERRED_AGE_DIFFERENCE_GROWTH*mean_age))
