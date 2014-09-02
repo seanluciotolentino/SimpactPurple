@@ -5,7 +5,7 @@ Created on Tue Sep 02 13:23:24 2014
 @author: Lucio
 
 A script to investigate whether there is a substantial difference
-in model output (other that runtime) from four scenarios:
+in model output and model runtime from four scenarios:
     (1) Default simulation with resort and recycle
     (2) No resort skipping -- i.e. resort for every suitor
     (3) No recycling -- age difference and mean age are always recalculate
@@ -14,7 +14,8 @@ in model output (other that runtime) from four scenarios:
 This script runs each scenario by using modified community and
 grid queue classes (defined in this script). When this script is
 called to run the two values for resort and recycle must be provided
-(i.e. which of the four scenarios should the script run?)
+(i.e. which of the four scenarios should the script run?) along with
+the function to run (output or speed).
 
 """
 
@@ -24,6 +25,7 @@ import numpy as np
 import random
 import sys
 import GraphsAndData
+import time
 
 class ModifiedGridQueue(GridQueue.GridQueue):
     def enquire(self, suitor):
@@ -102,11 +104,11 @@ class ModifiedCommunity(simpactpurple.Community):
             gq.PREFERRED_AGE_DIFFERENCE_GROWTH = self.PREFERRED_AGE_DIFFERENCE_GROWTH
             gq.SB_PROBABILITY_MULTIPLIER = self.SB_PROBABILITY_MULTIPLIER
             
-            #===START CHANGES
+            #===START CHANGES 1/1 ===#
             #add additional variables to grid queues
             gq.resort = self.resort
             gq.recycle = self.recycle
-            #===END CHANGES
+            #===END CHANGES 1/1 ===#
             
             self.grid_queues[gq.index] = gq
             self.grid_queue_index+=1
@@ -117,26 +119,43 @@ class ModifiedCommunity(simpactpurple.Community):
         self.next_bottom += self.BIN_SIZE*52
         
 #%%script starts here
-n = 100
-resort = int(sys.argv[1])
-recycle = int(sys.argv[2])
-f = open("Resort{0}Recycle{1}.csv".format(resort, recycle),'w')
-for i in range(n):
-    #run the modified simulation
-    s = ModifiedCommunity()
-    s.INITIAL_POPULATION = 10000
-    s.NUMBER_OF_YEARS = 30
-    s.resort = resort
-    s.recycle = recycle
-    s.run()
-    
-    #write it all to a file
-    f.write(str(i) + ",")
-    f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
-    f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008
-    f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-6)))+",")  # 2002
-    f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
-    f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008       
-    f.write("\n")
-    
-    
+try:
+    resort = int(sys.argv[1])
+    recycle = int(sys.argv[2])
+    function = int(sys.argv[3])
+except IndexError:
+    print "all input variables not defined: Need resort, recycle, and function"
+    sys.exit(0)
+
+if function == 'output':
+    n = 100
+    f = open("Resort{0}Recycle{1}.csv".format(resort, recycle),'w')
+    for i in range(n):
+        #run the modified simulation
+        s = ModifiedCommunity()
+        s.INITIAL_POPULATION = 10000
+        s.NUMBER_OF_YEARS = 30
+        s.resort = resort
+        s.recycle = recycle
+        s.run()
+        
+        #write it all to a file
+        f.write(str(i) + ",")
+        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
+        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008
+        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-6)))+",")  # 2002
+        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
+        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008       
+        f.write("\n")
+elif function == 'speed':
+    print "population\truntime"
+    for pop in (10000,50000,10000):
+        #single node version
+        start = time.time()
+        s = simpactpurple.Community()
+        s.INITIAL_POPULATION = pop
+        s.run()
+        elapsed_time = round(time.time() - start,2)
+        print pop,"\t",elapsed_time
+else:
+    print "unknown function provided:",function
