@@ -119,12 +119,10 @@ class RelationshipOperator(Operators.RelationshipOperator):
         # Reject based on DNP rule
         for agent in [agent1, agent2]:
             if self.master.network.degree(agent) >= agent.dnp:
-                #print "--> DNP rejected"
                 return
                 
         # Reject if relationship exists
         if self.master.network.has_edge(agent1,agent2):
-            #print "--> pre-exisiting rejected"
             return
                 
         #actually form the relationship

@@ -52,7 +52,7 @@ class Community():
         self.MIN_AGE = 15
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
-        self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*random.exponential(5)
+        self.DURATIONS = lambda a1, a2: 10*np.mean((self.age(a1),self.age(a2)))*random.exponential(5)
         self.RECRUIT_WARM_UP = 20
         self.RECRUIT_INITIAL = 0.02
         self.RECRUIT_RATE = 0.005
@@ -71,7 +71,7 @@ class Community():
         self.AGENT_ATTRIBUTES = {}
         self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
         self.SEX = lambda: random.randint(self.SEXES)
-        self.DNP = lambda: random.power(0.1)*1.5
+        self.DNP = lambda: random.power(0.1)*1.2
         self.SEXUAL_BEHAVIOR = lambda: random.randint(1,5)
         
     def run(self, timing=False):
