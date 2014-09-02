@@ -24,7 +24,7 @@ import simpactpurple.GridQueue as GridQueue
 import numpy as np
 import random
 import sys
-import GraphsAndData
+import simpactpurple.GraphsAndData as GraphsAndData
 import time
 
 class ModifiedGridQueue(GridQueue.GridQueue):
@@ -122,7 +122,7 @@ class ModifiedCommunity(simpactpurple.Community):
 try:
     resort = int(sys.argv[1])
     recycle = int(sys.argv[2])
-    function = int(sys.argv[3])
+    function = sys.argv[3]
 except IndexError:
     print "all input variables not defined: Need resort, recycle, and function"
     sys.exit(0)
@@ -149,7 +149,7 @@ if function == 'output':
         f.write("\n")
 elif function == 'speed':
     print "population\truntime"
-    for pop in (10000,50000,10000):
+    for pop in range(10000,50000,10000):
         #single node version
         start = time.time()
         s = simpactpurple.Community()
