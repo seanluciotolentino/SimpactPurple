@@ -95,9 +95,9 @@ class RelationshipOperator(Operators.RelationshipOperator):
         pq = Queue.PriorityQueue()
         while matches:
             match = matches.pop()
-            hazard = self.master.hazard(suitor, match)
+            probability = self.master.probability(suitor, match)
             r = np.random.random()
-            decision = int(r < hazard)
+            decision = int(r < probability)
             pq.put((-decision, match))
         
         #3.1 Verify acceptance and form the relationship
@@ -279,9 +279,12 @@ class InfectionOperator(Operators.InfectionOperator):
         infections = int(initial_prevalence*self.master.INITIAL_POPULATION)
         agent = random.choice(self.master.agents.values())
         for i in range(infections):
-            #while agent in self.infected_agents:  # avoid duplicates
-            while agent in self.infected_agents or agent.home != self.master.rank:
-                agent = random.choice(self.master.agents.values())
+            if self.master.migration:
+                while agent in self.infected_agents or agent.home != self.master.rank:
+                    agent = random.choice(self.master.agents.values())
+            else:
+                while agent in self.infected_agents:  # avoid duplicates
+                    agent = random.choice(self.master.agents.values())
             agent.time_of_infection = seed_time
             self.infected_agents.append(agent)
         

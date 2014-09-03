@@ -607,7 +607,7 @@ def number_of_partners_data(s, year = None):
             relationships[agent]+=1
     
     #post process tallies
-    total = {i:0 for i in range(6)}
+    total = {i:0.001 for i in range(6)}
     positive = {i:0 for i in range(6)}
     for agent in relationships.keys():
         if s.age(agent)<24:

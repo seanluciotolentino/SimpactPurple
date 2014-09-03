@@ -53,6 +53,7 @@ class CommunityDistributed(simpactpurple.Community):
         self.MAX_AGE = 40  # dictated by number of slots on helium -- 16
         
         #migration variables
+        self.migration = False
         if len(migration)>0:
             self.migration = True
             self.other_primaries = migration['other_primaries']

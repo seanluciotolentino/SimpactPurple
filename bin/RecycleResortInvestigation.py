@@ -21,11 +21,11 @@ the function to run (output or speed).
 
 import simpactpurple
 import simpactpurple.GridQueue as GridQueue
+import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
 import numpy as np
 import random
-import sys
 import simpactpurple.GraphsAndData as GraphsAndData
-import time
+from mpi4py import MPI
 
 class ModifiedGridQueue(GridQueue.GridQueue):
     def enquire(self, suitor):
@@ -89,7 +89,7 @@ class ModifiedGridQueue(GridQueue.GridQueue):
         self.agents.push(match.last_match, match)  # move from top position        
         return match_name
 
-class ModifiedCommunity(simpactpurple.Community):
+class ModifiedCommunity(CommunityDistributed.CommunityDistributed):
     def make_n_queues(self, n):
         """
         Change which GridQueue is used in the simulation.
@@ -117,29 +117,26 @@ class ModifiedCommunity(simpactpurple.Community):
         #increment for next grid queue
         self.next_top += self.BIN_SIZE*52
         self.next_bottom += self.BIN_SIZE*52
-        
-#%%script starts here
-try:
-    resort = int(sys.argv[1])
-    recycle = int(sys.argv[2])
-    function = sys.argv[3]
-except IndexError:
-    print "all input variables not defined: Need resort, recycle, and function"
-    sys.exit(0)
+    
 
-if function == 'output':
-    n = 100
-    f = open("Resort{0}Recycle{1}.csv".format(resort, recycle),'w')
-    for i in range(n):
+#%%script starts here
+resort = 1
+recycle = 1    
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+print "hello from",rank,"running recycle {0} resort {1}".format(recycle, resort)
+n = 10
+for i in range(n):
+    if rank == 0:
         #run the modified simulation
-        s = ModifiedCommunity()
-        s.INITIAL_POPULATION = 10000
-        s.NUMBER_OF_YEARS = 30
+        s = ModifiedCommunity(comm, rank, [])
+        s.INITIAL_POPULATION = 1000
         s.resort = resort
         s.recycle = recycle
         s.run()
         
         #write it all to a file
+        f = open("Resort{0}Recycle{1}.csv".format(resort, recycle),'w')
         f.write(str(i) + ",")
         f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
         f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008
@@ -147,15 +144,18 @@ if function == 'output':
         f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
         f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008       
         f.write("\n")
-elif function == 'speed':
-    print "population\truntime"
-    for pop in range(10000,50000,10000):
-        #single node version
-        start = time.time()
-        s = simpactpurple.Community()
-        s.INITIAL_POPULATION = pop
-        s.run()
-        elapsed_time = round(time.time() - start,2)
-        print pop,"\t",elapsed_time
-else:
-    print "unknown function provided:",function
+        f.close()
+    else:
+        simpactpurple.distributed.CommunityDistributed.ServeQueue(0, comm)
+
+#print "population\truntime"
+#for pop in range(50000,300001,50000):
+#    #single node version
+#    start = time.time()
+#    s = ModifiedCommunity()
+#    s.resort = resort
+#    s.recycle = recycle
+#    s.INITIAL_POPULATION = pop
+#    s.run()
+#    elapsed_time = round(time.time() - start,2)
+#    print pop,"\t",elapsed_time
