@@ -14,7 +14,7 @@ import simpactpurple.GraphsAndData as gad
 
 if __name__ == '__main__':
     s = simpactpurple.Community()
-    s.INITIAL_POPULATION = 100
+    s.INITIAL_POPULATION = 1000
     s.NUMBER_OF_YEARS = 30
     s.run(timing = True)
 

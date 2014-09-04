@@ -35,10 +35,17 @@ class MPIpe():
 
 class CommunityDistributed(simpactpurple.Community):
     """
-    The main object for a distributed community simulation."
+    A community that is meant to be used in a distributed setting (to
+    be called with mpirun). 
     """
 
     def __init__(self, comm, primary, others, **migration):
+        """
+        Create a community for a distributed setting that communicates
+        via MPI with *comm*. *primary* is the rank of the primary
+        community to report to. *others* are the other auxilary commuties.
+        *migration* are extra optional parameters for running with migration.
+        """
         simpactpurple.Community.__init__(self)
         
         #Distributed parameters
@@ -53,7 +60,6 @@ class CommunityDistributed(simpactpurple.Community):
         self.MAX_AGE = 40  # dictated by number of slots on helium -- 16
         
         #migration variables
-        self.migration = False
         if len(migration)>0:
             self.migration = True
             self.other_primaries = migration['other_primaries']
@@ -61,7 +67,8 @@ class CommunityDistributed(simpactpurple.Community):
             self.gravity = migration['gravity']
             self.probabilities = self.gravity / np.sum(self.gravity, axis=0)
             self.transition = np.cumsum(self.probabilities, axis=0)
-            #self.past_partners = {}  # for reforming relationships -- should be in start
+        else:
+            self.migration = False
         
         #queue ranks
         slots_per_node = 16  # 16 on neon, 12 on helium

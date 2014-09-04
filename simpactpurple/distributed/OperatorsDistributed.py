@@ -178,11 +178,18 @@ class TimeOperator(Operators.TimeOperator):
             msg = self.master.pipes[queue].recv()
             while msg != 'done':
                 agent = self.master.agents[msg]
+                
+                #does this community remove?
                 if self.master.is_primary:
                     self.remove(agent)
                 else:
                     self.master.comm.send(('remove_from_simulation',agent.name), dest = self.master.primary)
-                if self.master.migration and agent.home == self.master.rank:
+
+                #does this community replace?
+                if self.master.migration:
+                    if agent.home == self.master.rank:
+                        self.replace(agent)
+                else:
                     self.replace(agent)
                 msg = self.master.pipes[queue].recv()
                 

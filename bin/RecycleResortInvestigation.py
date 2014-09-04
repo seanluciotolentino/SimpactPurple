@@ -26,6 +26,7 @@ import numpy as np
 import random
 import simpactpurple.GraphsAndData as GraphsAndData
 from mpi4py import MPI
+import sys
 
 class ModifiedGridQueue(GridQueue.GridQueue):
     def enquire(self, suitor):
@@ -117,32 +118,31 @@ class ModifiedCommunity(CommunityDistributed.CommunityDistributed):
         #increment for next grid queue
         self.next_top += self.BIN_SIZE*52
         self.next_bottom += self.BIN_SIZE*52
-    
+    def add_to_simulation(self, agent):
+        print "adding",agent.name,round(self.age(agent),2)
+        CommunityDistributed.CommunityDistributed.add_to_simulation(self, agent)
+
 
 #%%script starts here
-resort = 1
-recycle = 1    
+resort = int(sys.argv[1])
+recycle = 1
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-print "hello from",rank,"running recycle {0} resort {1}".format(recycle, resort)
-n = 10
+n = 20
 for i in range(n):
     if rank == 0:
         #run the modified simulation
         s = ModifiedCommunity(comm, rank, [])
-        s.INITIAL_POPULATION = 1000
+        s.INITIAL_POPULATION = 10000
         s.resort = resort
         s.recycle = recycle
         s.run()
         
         #write it all to a file
-        f = open("Resort{0}Recycle{1}.csv".format(resort, recycle),'w')
+        f = open("Resort{0}Recycle{1}.csv".format(resort, recycle),'a')
         f.write(str(i) + ",")
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-6)))+",")  # 2002
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008       
+        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS)))+",")  # 2008
+        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS)))+",")  # 2008
         f.write("\n")
         f.close()
     else:
