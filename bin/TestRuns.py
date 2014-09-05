@@ -11,15 +11,20 @@ with parallel grid queues.
 
 import simpactpurple
 import simpactpurple.GraphsAndData as gad
+import numpy as np
+import numpy.random as random
 
 if __name__ == '__main__':
     s = simpactpurple.Community()
     s.INITIAL_POPULATION = 1000
+    s.AGE_PROBABILITY_MULTIPLIER = 0
+    s.DURATIONS = lambda a1, a2: np.mean((s.age(a1),s.age(a2)))*random.exponential(5)
+    s.INFECTIVITY = 0.9
     s.NUMBER_OF_YEARS = 30
     s.run(timing = True)
 
     #GRAPH VERIFICATION
-#    gad.prevalence_graph(s)
+    gad.prevalence_graph(s)
 #    gad.formed_relations_graph(s)
 #    gad.demographics_graph(s)
 #    gad.age_mixing_graph(s)
