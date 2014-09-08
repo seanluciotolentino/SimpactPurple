@@ -5,23 +5,20 @@ Created on Tue Sep 02 13:23:24 2014
 @author: Lucio
 
 A script to investigate whether there is a substantial difference
-in model output and model runtime from four scenarios:
-    (1) Default simulation with resort and recycle
-    (2) No resort skipping -- i.e. resort for every suitor
-    (3) No recycling -- age difference and mean age are always recalculate
-    (4) No resort skipping or recycling
+in model output from resorting versus without.
 
 This script runs each scenario by using modified community and
 grid queue classes (defined in this script). When this script is
-called to run the two values for resort and recycle must be provided
-(i.e. which of the four scenarios should the script run?) along with
-the function to run (output or speed).
+called to run the values for resort must be provided
+(i.e. which of the two scenarios should the script run?)
+
+*Note: Original checked the recycling values but this doesn't help
+much in the run time so it is no longer used. 
 
 """
 
 import simpactpurple
 import simpactpurple.GridQueue as GridQueue
-import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
 import numpy as np
 import random
 import simpactpurple.GraphsAndData as GraphsAndData
@@ -48,20 +45,15 @@ class ModifiedGridQueue(GridQueue.GridQueue):
             agents = list(self.agents.heap)
             self.agents.clear()
             for old_probability, agent in agents:  # old_probability is not needed
-                #===START CHANGES 1/2===#
-                if self.recycle:
-                    probability = self.probability(agent, suitor, age_difference = ad, mean_age = ma)                
-                else:
-                    probability = self.probability(agent, suitor)
-                #===END CHANGES=== 1/2#
+                probability = self.probability(agent, suitor, age_difference = ad, mean_age = ma)                
                 if random.random() < probability:                    
                     self.agents.push(agent.last_match,agent)
                 else:
                     self.agents.push(np.inf, agent)
-        #===START CHANGES 2/2===#
+        #===START CHANGES 1/1 ===#
         if self.resort:
             self.previous = suitor
-        #===END CHANGES 2/2===#
+        #===END CHANGES 1/1 ===#
 
         #3. Update last_match and return an accepting agent
         accept, match = self.agents.pop()        
@@ -90,7 +82,8 @@ class ModifiedGridQueue(GridQueue.GridQueue):
         self.agents.push(match.last_match, match)  # move from top position        
         return match_name
 
-class ModifiedCommunity(CommunityDistributed.CommunityDistributed):
+#class ModifiedCommunity(CommunityDistributed.CommunityDistributed):
+class ModifiedCommunity(simpactpurple.Community):
     def make_n_queues(self, n):
         """
         Change which GridQueue is used in the simulation.
@@ -121,28 +114,23 @@ class ModifiedCommunity(CommunityDistributed.CommunityDistributed):
 
 #%%script starts here
 resort = int(sys.argv[1])
-recycle = 1
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-n = 20
+n = 100
 for i in range(n):
-    if rank == 0:
-        #run the modified simulation
-        s = ModifiedCommunity(comm, rank, [])
-        s.INITIAL_POPULATION = 10000
-        s.resort = resort
-        s.recycle = recycle
-        s.run()
-        
-        #write it all to a file
-        f = open("Resort{0}Recycle{1}.csv".format(resort, recycle),'a')
-        f.write(str(i) + ",")
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS)))+",")  # 2008
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS)))+",")  # 2008
-        f.write("\n")
-        f.close()
-    else:
-        simpactpurple.distributed.CommunityDistributed.ServeQueue(0, comm)
+    #run the modified simulation
+    s = ModifiedCommunity()
+    s.INITIAL_POPULATION = 10000
+    s.DURATIONS = lambda a1, a2: 10*np.mean((s.age(a1),s.age(a2)))*random.exponential(5)
+    s.resort = resort
+    s.run()
+    
+    #write it all to a file
+    f = open("Resort{0}.csv".format(resort),'a')
+    f.write(str(i) + ",")
+    f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS)))+",")  # 2008
+    f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS)))+",")  # 2008
+    f.write("\n")
+    f.close()
+
 
 #print "population\truntime"
 #for pop in range(50000,300001,50000):
