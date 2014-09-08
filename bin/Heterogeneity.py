@@ -55,5 +55,5 @@ if __name__ == '__main__':
                 prev.append(gad.prevalence_data(s)*100)
                 plt.plot(np.arange(0,s.time)/52.0, prev[-1], c = colors[i])
                 plt.ylim(0,100)
-            plt.plot(np.average(prev, axis=0), c= 'k')
+            plt.plot(np.arange(0,s.time)/52.0,np.average(prev, axis=0), c= 'k')
     plt.savefig('heterogeneity_plots.png', dpi = 150)
