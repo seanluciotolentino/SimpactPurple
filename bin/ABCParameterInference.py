@@ -16,6 +16,8 @@ import simpactpurple.GraphsAndData as GraphsAndData
 import numpy as np
 import numpy.random as random
 from numpy.random import uniform as uni
+from mpi4py import MPI
+import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
 
 try: 
     from mpi4py import MPI
@@ -62,8 +64,12 @@ def distance(s):
 
     #return result of test
     return age_disparate + sexual_partners
-    
-if __name__ == '__main__':
+
+#MPI variables
+name = MPI.Get_processor_name()
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+if rank == 0:
     #%% 0. Setup 
     # Every prior distribution is a uniform and given by a bottom and top
     prior = {
@@ -92,12 +98,13 @@ if __name__ == '__main__':
     
     f.write("distance\n")
     
-    #%% 1. Run ABC algorithm
-    n = 1000
-    for i in range(n):
+#%% 1. Run ABC algorithm
+n = 1000
+for i in range(n):
+    if rank == 0:    
         #1.1 Sample and set parameters from prior distribution
         print "---Sample", i,"---"
-        s = simpactpurple.Community()
+        s = CommunityDistributed.CommunityDistributed(comm, 0, [])
         # set constants
         s.INITIAL_POPULATION = 10000  # scale this up later?
         s.NUMBER_OF_YEARS = 30
@@ -133,9 +140,12 @@ if __name__ == '__main__':
         f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008       
         
         f.write(str(distance(s))+"\n")
-        
-    # end abc for-loop    
-    f.close()  
+    else: # rank != 0
+        master = rank%(comm.Get_size()/16)
+        CommunityDistributed.ServeQueue(master, comm)    
+    
+if rank == 0:
+    f.close()
     
     
     
