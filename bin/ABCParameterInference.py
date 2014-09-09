@@ -18,12 +18,6 @@ import numpy.random as random
 from numpy.random import uniform as uni
 from mpi4py import MPI
 import simpactpurple.distributed.CommunityDistributed as CommunityDistributed
-
-try: 
-    from mpi4py import MPI
-    filename = "ABCoutput_{0}.csv".format(MPI.Get_processor_name())
-except ImportError:
-    filename = "ABCoutput_default.csv"
    
 def distance(s):
     """
@@ -69,34 +63,33 @@ def distance(s):
 name = MPI.Get_processor_name()
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-if rank == 0:
-    #%% 0. Setup 
-    # Every prior distribution is a uniform and given by a bottom and top
-    prior = {
-                1: lambda: uni(-0.01, -0.5),   # probability multiplier
-                2: lambda: uni(-0.01, -0.5),   # preferred age difference
-                3: lambda: uni(0.01, 2),       # preferred age difference growth
-                
-                4: lambda: uni(1, 4),          # DNP scale
-                5: lambda: uni(0.05, 0.9),     # DNP shape 
-                6: lambda: uni(2, 10),         # durations scale
-                7: lambda: uni(0, 5),          # durations shape 
-    }
-    posterior = {i:[] for i in prior.keys()}
+
+#%% 0. Setup 
+# Every prior distribution is a uniform and given by a bottom and top
+prior = {
+            1: lambda: uni(-0.01, -0.5),   # probability multiplier
+            2: lambda: uni(-0.01, -0.5),   # preferred age difference
+            3: lambda: uni(0.01, 2),       # preferred age difference growth
+            
+            4: lambda: uni(1, 4),          # DNP scale
+            5: lambda: uni(0.05, 0.9),     # DNP shape 
+            6: lambda: uni(15, 30),        # durations scale
+            7: lambda: uni(0, 5),          # durations shape 
+}
+posterior = {i:[] for i in prior.keys()}
     
-    #file to write
-    f = open(filename,'w')
-    #rows 0-7
-    f.write("#,ProbMult, PAD, PADgrowth, DNPscale, DNPshape, DURAscale, DURAshape,")  # parameters
-    #rows 8-11, 12-15    
-    f.write("NonInterMale05,InterMale05,NonInterFemale05,InterFemale05,")  # intergernational sex 2005
-    f.write("NonInterMale08,InterMale08,NonInterFemale08,InterFemale08,")  # intergernational sex 2008
-    #rows 16-21,22-27,28-33
-    f.write("MP15-24Male02,MP15-24Female02,MP25-49Male02,MP25-49Female02,MP50+Male02,MP50+Female02,")  # multiple partners 02
-    f.write("MP15-24Male05,MP15-24Female05,MP25-49Male05,MP25-49Female05,MP50+Male05,MP50+Female05,")  # multiple partners 05
-    f.write("MP15-24Male08,MP15-24Female08,MP25-49Male08,MP25-49Female08,MP50+Male08,MP50+Female08,")  # multiple partners 08
-    
-    f.write("distance\n")
+##file to write
+##rows 0-7
+#print "#,ProbMult, PAD, PADgrowth, DNPscale, DNPshape, DURAscale, DURAshape,"  # parameters
+##rows 8-11, 12-15    
+#print "NonInterMale05,InterMale05,NonInterFemale05,InterFemale05,"  # intergernational sex 2005
+#print "NonInterMale08,InterMale08,NonInterFemale08,InterFemale08,"  # intergernational sex 2008
+##rows 16-21,22-27,28-33
+#print "MP15-24Male02,MP15-24Female02,MP25-49Male02,MP25-49Female02,MP50+Male02,MP50+Female02,"  # multiple partners 02
+#print "MP15-24Male05,MP15-24Female05,MP25-49Male05,MP25-49Female05,MP50+Male05,MP50+Female05,"  # multiple partners 05
+#print "MP15-24Male08,MP15-24Female08,MP25-49Male08,MP25-49Female08,MP50+Male08,MP50+Female08,"  # multiple partners 08
+#
+#print "distance\n")
     
 #%% 1. Run ABC algorithm
 n = 1000
@@ -120,33 +113,26 @@ for i in range(n):
         
         s.durations_scale = prior[6]()
         s.durations_shape = prior[7]()
-        s.DURATIONS = lambda a1,a2: np.mean((s.age(a1),s.age(a2)))*s.durations_scale*random.exponential(s.durations_shape)
+        s.DURATIONS = lambda a1,a2: s.durations_scale*random.exponential(s.durations_shape)
         
         #1.2 Run simulation
         s.run()
         
         #1.3 Save to csv
-        f.write(str(i) + ",")
-        f.write(",".join(map(lambda x: str(round(x,2)),[s.probability_multiplier,
+        print str(i) + ","
+        print ",".join(map(lambda x: str(round(x,2)),[s.probability_multiplier,
                              s.preferred_age_difference, s.preferred_age_difference_growth,
                              s.DNPscale, s.DNPshape,
-                             s.durations_scale, s.durations_shape]))+",")
+                             s.durations_scale, s.durations_shape]))+","
         
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-3)))+","  # 2005
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-0)))+","  # 2008
         
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-6)))+",")  # 2002
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-3)))+",")  # 2005
-        f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",")  # 2008       
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-6)))+","  # 2002
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-3)))+","  # 2005
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+","  # 2008       
         
-        f.write(str(distance(s))+"\n")
+        print str(distance(s))+"\n"
     else: # rank != 0
         master = rank%(comm.Get_size()/16)
         CommunityDistributed.ServeQueue(master, comm)    
-    
-if rank == 0:
-    f.close()
-    
-    
-    
-
