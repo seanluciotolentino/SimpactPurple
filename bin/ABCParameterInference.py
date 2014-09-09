@@ -96,7 +96,7 @@ n = 1000
 for i in range(n):
     if rank == 0:    
         #1.1 Sample and set parameters from prior distribution
-        print "---Sample", i,"---"
+        #print "---Sample", i,"---"
         s = CommunityDistributed.CommunityDistributed(comm, 0, [])
         # set constants
         s.INITIAL_POPULATION = 10000  # scale this up later?
@@ -119,20 +119,20 @@ for i in range(n):
         s.run()
         
         #1.3 Save to csv
-        print str(i) + ","
+        print str(i) + ",",
         print ",".join(map(lambda x: str(round(x,2)),[s.probability_multiplier,
                              s.preferred_age_difference, s.preferred_age_difference_growth,
                              s.DNPscale, s.DNPshape,
-                             s.durations_scale, s.durations_shape]))+","
+                             s.durations_scale, s.durations_shape]))+",",
         
-        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-3)))+","  # 2005
-        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-0)))+","  # 2008
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-3)))+",",  # 2005
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS-0)))+",",  # 2008
         
-        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-6)))+","  # 2002
-        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-3)))+","  # 2005
-        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+","  # 2008       
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-6)))+",",  # 2002
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-3)))+",",  # 2005
+        print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS-0)))+",",  # 2008       
         
-        print str(distance(s))+"\n"
+        print str(distance(s))
     else: # rank != 0
         master = rank%(comm.Get_size()/16)
         CommunityDistributed.ServeQueue(master, comm)    
