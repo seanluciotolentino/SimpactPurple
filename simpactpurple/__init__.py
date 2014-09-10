@@ -52,7 +52,7 @@ class Community():
         self.MIN_AGE = 15
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
-        self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*random.exponential(5)
+        self.DURATIONS = lambda a1, a2: 30*random.exponential(1)
         self.RECRUIT_WARM_UP = 20
         self.RECRUIT_INITIAL = 0.02
         self.RECRUIT_RATE = 0.005

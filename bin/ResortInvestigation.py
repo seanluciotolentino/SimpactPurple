@@ -20,9 +20,8 @@ much in the run time so it is no longer used.
 import simpactpurple
 import simpactpurple.GridQueue as GridQueue
 import numpy as np
-import random
+import numpy.random as random
 import simpactpurple.GraphsAndData as GraphsAndData
-from mpi4py import MPI
 import sys
 
 class ModifiedGridQueue(GridQueue.GridQueue):
@@ -101,7 +100,6 @@ class ModifiedCommunity(simpactpurple.Community):
             #===START CHANGES 1/1 ===#
             #add additional variables to grid queues
             gq.resort = self.resort
-            gq.recycle = self.recycle
             #===END CHANGES 1/1 ===#
             
             self.grid_queues[gq.index] = gq
@@ -119,7 +117,6 @@ for i in range(n):
     #run the modified simulation
     s = ModifiedCommunity()
     s.INITIAL_POPULATION = 10000
-    s.DURATIONS = lambda a1, a2: 10*np.mean((s.age(a1),s.age(a2)))*random.exponential(5)
     s.resort = resort
     s.run()
     
