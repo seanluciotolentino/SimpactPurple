@@ -290,11 +290,15 @@ class Community():
         for gq in self.grid_queues.values():
             pipe = self.pipes[gq.index]
             pipe.send("queue")
-            agents = pipe.recv()
-            agents = [str(a.name) for p,a in agents.heap]
+            pq = pipe.recv()
+            #agents = [str(a.name) for p,a in agents.heap]
+            agents = []
+            for i in range(len(pq.heap)):
+                a = pq.pop()
+                agents.append(str((a[0], a[1].name)))
             
             line = str(gq.index) + "\t|" + str(gq.sex) + " " + \
-                str(gq.age()) + " " + str(len(agents)) + " || " + \
+                str(round(gq.age(),2)) + " " + str(len(agents)) + " || " + \
                 str(any([a for a in agents if agents.count(a) > 1])) + \
                 "\t|| " + " ".join(agents)
             print line

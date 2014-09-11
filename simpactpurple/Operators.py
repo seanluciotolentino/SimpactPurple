@@ -135,14 +135,13 @@ class RelationshipOperator():
         #add the relationship to data structures
         self.master.relationships.append((agent1, agent2, self.master.time, end_time))
         self.master.network.add_edge(agent1, agent2, {"start":self.master.time, "end": end_time,})
-        #print " ++ ",self.master.rank, "forming relationship:", agent1.name, "and", 
-        #print agent2.name,"|",self.master.time + d, self.master.NUMBER_OF_YEARS*52, 
-        #print self.max_weeks+agent1.born, self.max_weeks+agent2.born,"| time", self.master.time
-
+        #print " ++ forming relationship:", agent1.name, "and", agent2.name, "(",agent1.grid_queue,",",agent2.grid_queue,")"
+        
     def dissolve_relationship(self, agent1, agent2):
         """
         Dissolves a relationship between agent1 and agent2.
         """
+        #print " -- dissolving relationship:", agent1.name, "and", agent2.name, "(",agent1.grid_queue,",",agent2.grid_queue,")"
         self.master.network.remove_edge(agent1, agent2)
 
         #add agents into appropriate grid queues

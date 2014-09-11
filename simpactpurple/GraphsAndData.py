@@ -104,10 +104,12 @@ def age_mixing_heat_graph(s, grid = 10, filename = None):
         plt.savefig(filename)
         plt.close(fig)
 
-def formation_hazard(a,b,c):
+def formation_hazard(preferred_age_difference,probability_multiplier,preferred_age_difference_growth):
     """
     Generates an age mixing scatter for many relationships with random
-    ages for partners colored by the hazard of formation.
+    ages for partners colored by the hazard of formation. arguments are
+    *preferred_age_difference*, *probability_multiplier*, 
+    *preferred_age_difference_growth*.
     """
     #some graph parameters
     pop = 2000
@@ -122,28 +124,8 @@ def formation_hazard(a,b,c):
     age_difference = female_ages-male_ages
 
     #hazard parameters (note: for factors lower -> narrower)
-    #1)
-#    baseline = 1
-#    age_difference_factor = -0.2
-#    mean_age_factor = -0.01
-#    h = baseline*np.exp(age_difference_factor*age_difference + mean_age_factor*mean_age)
-
-    #2) since age_difference = female_age - male_age, this is from male perspective
-    preferred_age_difference = a#-0.1
-    probability_multiplier = b#-0.1
-    preferred_age_difference_growth = c#2
-
     top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
     h = np.exp(probability_multiplier * top)
-
-    #3) (same as two)
-#    preferred_age_difference = -0.5
-#    probability_multiplier = -0.1
-#    preferred_age_difference_growth = 0.9
-#    age_difference_dispersion = -0.01
-#    top = abs(age_difference - (preferred_age_difference * preferred_age_difference_growth * mean_age) )
-#    bottom = preferred_age_difference * mean_age * age_difference_dispersion
-#    h = np.exp(probability_multiplier * (top/bottom)  )
 
     #make graph
     plt.ion()

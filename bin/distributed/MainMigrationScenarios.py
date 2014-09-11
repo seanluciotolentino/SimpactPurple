@@ -92,3 +92,26 @@ gravity = np.power(gravity, migration_amount)
 #actually run it
 for i in range(num_runs):
     run()
+    
+    
+#%% process some of the input
+import matplotlib.pyplot as plt
+name = ['Western Cape', 'Eastern Cape', 'Northern Cape', 'Free State', 
+        'KZN', 'NorthWest', 'Gauteng', 'Mpumalanda', 'Limpopo']
+variation = 1
+samples = 1000
+plt.figure()
+plt.suptitle('Prevalence under 0.1 migration', fontsize=14)
+for i in range(3):
+    for j in range(3):
+        plt.subplot(3,3,(i*3)+(j+1))
+        #plt.plot(range(0,31,5), prev[(i*3)+j])
+        plt.hist([np.max((0,random.normal(100*prev[(i*3)+j][-1], variation))) for n in range(samples)])
+        plt.title(name[(i*3)+j])
+        if j == 0:
+            plt.ylabel('Frequency')
+        if i == 2:
+            plt.xlabel('30-year Prevalence')
+        #plt.ylim((0.0, 0.15))
+        plt.xlim((0,20))
+        

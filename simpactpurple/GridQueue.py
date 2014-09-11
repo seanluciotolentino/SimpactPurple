@@ -25,6 +25,8 @@ def listen(gq, pipe):
             pipe.send(gq.contains(pipe.recv()))
         elif action == "queue":
             pipe.send(gq.agents)
+        elif action == "size":
+            pipe.send(len(gq.agents))
         elif action == "time":
             gq.time = pipe.recv()
         elif action == "oldest":
@@ -33,7 +35,6 @@ def listen(gq, pipe):
             break
         else:
             raise ValueError, "GridQueue received unknown action:" + action
-
 
 class GridQueue():
     """
@@ -145,6 +146,7 @@ class GridQueue():
 
         #add with the appropriate priority
         self.names[agent_name] = agent
+        agent.last_match = self.time
         self.agents.push(agent.last_match, agent)
             
     def remove(self, agent_name):
