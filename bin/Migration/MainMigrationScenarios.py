@@ -70,10 +70,10 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 #simulation setup parameters
-years = 5.5
-num_runs = 10
+years = 30.1
+num_runs = 100
 num_communities = comm.Get_size()/16
-fraction = 1.0 / 10000
+fraction = 1.0 / 100
 seed_prevalence = 0.01
 migration = np.loadtxt('migration.csv', delimiter=",")  # place this in your neon home directory
 population = np.array([migration[i,i] for i in range(num_communities)])*fraction
