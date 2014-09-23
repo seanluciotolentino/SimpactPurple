@@ -44,7 +44,7 @@ def run():
         s = CommunityDistributed.CommunityDistributed(comm, rank, others, 
                 other_primaries = op, timing = timing, gravity = gravity)
         s.INITIAL_POPULATION = int(population[rank])
-        s.INITIAL_PREVALENCE = init_prev[0][rank]
+        s.INITIAL_PREVALENCE = init_prev[rank]
         s.NUMBER_OF_YEARS = years
         s.DURATIONS = lambda a1, a2: np.mean((s.age(a1),s.age(a2)))*np.random.exponential(5)
         s.run()
@@ -53,8 +53,8 @@ def run():
         if rank == 0:
             prev = [comm.recv(source = r) for r in range(1, num_communities)]
             prev.insert(0,[round(p,3) for p in gad.prevalence_data(s)[::52*5]])
-            #print migration_amount," ".join(map(lambda p: " ".join(map(str,p)),prev))
-            print migration_amount, timing_scale, seed_scenario, prev, round(time.time() - start, 3)
+            print migration_amount,timing_scale, seed_scenario," ".join(map(lambda p: " ".join(map(str,p)),prev)),round(time.time() - start, 3)
+            #print migration_amount, timing_scale, seed_scenario, prev, round(time.time() - start, 3)
         else:
             comm.send([round(p,3) for p in gad.prevalence_data(s)[::52*5]], dest = 0)
     elif rank < num_communities:
@@ -70,10 +70,10 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 #simulation setup parameters
-years = 30
-num_runs = 100
+years = 5.5
+num_runs = 10
 num_communities = comm.Get_size()/16
-fraction = 1.0 / 1000
+fraction = 1.0 / 10000
 seed_prevalence = 0.01
 migration = np.loadtxt('migration.csv', delimiter=",")  # place this in your neon home directory
 population = np.array([migration[i,i] for i in range(num_communities)])*fraction
@@ -84,43 +84,44 @@ timing_scale = 3.0
 seed_scenario = 1
 try:
     scenario = int(sys.argv[1])
-except:
+except IndexError:
     scenario = 0    
-if scenario == 0:
-    migration_amount = random.choice([0.1, 0.6, 1.0, 1.5, 2.0])    
-elif scenario == 1:
-    timing_scale = random.choice([1,3,5,7])
-elif scenario == 2:
-    r = random.random()
-    if r < (1/3.):
-        seed_scenario = 0
-    elif r < (2/3.):
-        seed_scenario = 1
-    else:
-        seed_scenario = 2
-
-#create parameters based on above parameters
-#migrations
-gravity = migration[:num_communities,:num_communities]
-gravity = np.power(gravity, migration_amount)
-#timing
-timing = np.ones(shape=(num_communities,num_communities))*timing_scale
-for i in range(num_communities):
-    for j in range(num_communities):
-        if i == j:
-            continue
-        else:
-            timing[i,j] = timing[i,j]*5
-#initial seeds
-number_seeds = seed_prevalence * sum(population)
-if seed_scenario == 0:
-    init_prev = np.zeros(shape=(1,num_communities))
-    init_prev[0,0] = number_seeds / population[0]
-elif seed_scenario == 1:
-    init_prev = (number_seeds/num_communities) / population
-else:
-    init_prev = np.ones(shape=(1,num_communities))*seed_prevalence
 
 #actually run it
 for i in range(num_runs):
+    #grab random variables
+    if scenario == 0:
+        migration_amount = random.choice([0.1, 0.6, 1.0, 1.5, 2.0])    
+    elif scenario == 1:
+        timing_scale = random.choice([1,3,5,7])
+    elif scenario == 2:
+        r = random.random()
+        if r < (1/3.):
+            seed_scenario = 0
+        elif r < (2/3.):
+            seed_scenario = 1
+        else:
+            seed_scenario = 2
+    
+    #create parameters based on random variables
+    #migrations
+    gravity = migration[:num_communities,:num_communities]
+    gravity = np.power(gravity, migration_amount)
+    #timing
+    timing = np.ones(shape=(num_communities,num_communities))*timing_scale
+    for i in range(num_communities):
+        for j in range(num_communities):
+            if i == j:
+                continue
+            else:
+                timing[i,j] = timing[i,j]*5
+    #initial seeds
+    number_seeds = seed_prevalence * sum(population)
+    if seed_scenario == 0:
+        init_prev = [0] * num_communities
+        init_prev[0] = number_seeds / population[0]
+    elif seed_scenario == 1:
+        init_prev = (number_seeds/num_communities) / population
+    else:
+        init_prev = [seed_prevalence]*num_communities
     run()
