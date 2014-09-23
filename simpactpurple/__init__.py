@@ -195,6 +195,7 @@ class Community():
             a = Agent()
             a.attributes["TIME_ADDED"] = self.time
             a.attributes["TIME_REMOVED"] = np.Inf
+            a.events = []
             a.born = self.BORN()
             a.sex = self.SEX()
             a.dnp = self.DNP()

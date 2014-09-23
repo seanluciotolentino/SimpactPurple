@@ -242,6 +242,7 @@ class CommunityDistributed(simpactpurple.Community):
                 agent = self.agents[data]
                 agent.time_of_infection = self.time
                 self.infection_operator.infected_agents.append(agent)
+                agent.events.append("migration add to infected agents at time {0}".format(self.time))
             elif msg == 'remove_from_simulation': #non-primary to primary
                 agent_name = data
                 agent = self.agents[agent_name]
