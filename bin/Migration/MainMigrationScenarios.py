@@ -81,7 +81,7 @@ population = np.array([migration[i,i] for i in range(num_communities)])*fraction
 #switch based provided input
 migration_amount = 1.0
 timing_scale = 3.0
-seed_scenario = 1
+seed_scenario = 0
 try:
     scenario = int(sys.argv[1])
 except IndexError:

@@ -223,9 +223,7 @@ class TimeOperator(Operators.TimeOperator):
         agent.grid_queue = None
         self.master.network.remove_node(agent)
         agent.attributes["TIME_REMOVED"] = self.master.time
-        agent.events.append("removed at time {0}".format(self.master.time))
         if agent.time_of_infection < np.inf:
-            agent.events.append("removed from infection list time {0}".format(self.master.time))
             self.master.infection_operator.infected_agents.remove(agent)
 
         
@@ -254,46 +252,19 @@ class InfectionOperator(Operators.InfectionOperator):
         for agent in self.infected_agents:
             if not self.master.active(agent):
                 continue  # skip inactive (migrating) agents
-            try:
-                relationships = self.master.network.edges(agent)
-            except:
-                print "!!!Agent not in graph!!!"
-                print "time", self.master.time
-                print "rank", self.master.rank
-                print "agent.home", agent.home
-                print "agent.away", agent.away
-                print "agent.removed", agent.attributes["TIME_REMOVED"]
-                print "agent.infected", agent.time_of_infection
-                print "agent.events", agent.events
-                print "----------"
-                print "infector", agent.infector
-                print "infector.infected", agent.infector.time_of_infection
-                print "infector.infector", agent.infector.infector
-                self.infected_agents.remove(agent)
-                continue  # really poor form
-                #raise Exception
-
-
+            relationships = self.master.network.edges(agent)
             for r in relationships:
                 if (r[0].time_of_infection < now and r[1].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     if self.master.migration and not self.master.active(r[1]):
                         continue
                     self.infected_agents.append(r[1])
                     r[1].time_of_infection = now
-                    
-                    #DEBUG
-                    r[1].events.append("infected by {0} at time {1}".format(r[0], now))
-                    r[1].infector = r[0]
                     continue
                 if (r[1].time_of_infection < now and r[0].time_of_infection > now) and np.random.random() < self.master.INFECTIVITY:
                     if self.master.migration and not self.master.active(r[0]):
                         continue
                     self.infected_agents.append(r[0])
                     r[0].time_of_infection = now
-                    
-                    #DEBUG
-                    r[0].events.append("infected by {0} at time {1}".format(r[0], now))
-                    r[0].infector = r[1]
                     
         # send infection updates
         if self.master.migration:
@@ -324,11 +295,6 @@ class InfectionOperator(Operators.InfectionOperator):
                     agent = random.choice(self.master.agents.values())
             agent.time_of_infection = seed_time
             self.infected_agents.append(agent)
-            
-            #DEBUG
-            agent.events.append("initially infected at time {0} with time of infection {1}".format(self.master.time, seed_time))
-            agent.infector = -1
-            self.initial_infected.append(agent)
         
         #send initial infections to other communities
         if self.master.migration:
