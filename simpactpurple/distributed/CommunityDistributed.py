@@ -161,9 +161,7 @@ class CommunityDistributed(simpactpurple.Community):
             agent.away = [int(v) for v in np.random.random() < self.transition[:,self.rank]].index(1)
             
         if agent.home != agent.away:
-            agent.gq_home = agent.grid_queue  #DEBUG
             self.comm.send(('add_migration',agent), dest=agent.away)
-            #self.comm.send(('add_to_grid_queue',agent), dest=agent.away)
             
     def active(self, agent):
         #check active/inactive status for migration
@@ -237,12 +235,10 @@ class CommunityDistributed(simpactpurple.Community):
             elif msg == 'add_migration':
                 agent = data
                 self.add_to_simulation(agent)
-                agent.gq_away = agent.grid_queue  #DEBUG
             elif msg == 'infection':
                 agent = self.agents[data]
                 agent.time_of_infection = max((self.SEED_TIME, self.time))
                 self.infection_operator.infected_agents.append(agent)
-                agent.events.append("migration add to infected agents at time {0}".format(self.time))
             elif msg == 'remove_from_simulation': #non-primary to primary
                 agent_name = data
                 agent = self.agents[agent_name]
