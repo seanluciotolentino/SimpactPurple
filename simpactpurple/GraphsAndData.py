@@ -104,10 +104,12 @@ def age_mixing_heat_graph(s, grid = 10, filename = None):
         plt.savefig(filename)
         plt.close(fig)
 
-def formation_hazard(a,b,c):
+def formation_hazard(preferred_age_difference,probability_multiplier,preferred_age_difference_growth):
     """
     Generates an age mixing scatter for many relationships with random
-    ages for partners colored by the hazard of formation.
+    ages for partners colored by the hazard of formation. arguments are
+    *preferred_age_difference*, *probability_multiplier*, 
+    *preferred_age_difference_growth*.
     """
     #some graph parameters
     pop = 2000
@@ -122,28 +124,8 @@ def formation_hazard(a,b,c):
     age_difference = female_ages-male_ages
 
     #hazard parameters (note: for factors lower -> narrower)
-    #1)
-#    baseline = 1
-#    age_difference_factor = -0.2
-#    mean_age_factor = -0.01
-#    h = baseline*np.exp(age_difference_factor*age_difference + mean_age_factor*mean_age)
-
-    #2) since age_difference = female_age - male_age, this is from male perspective
-    preferred_age_difference = a#-0.1
-    probability_multiplier = b#-0.1
-    preferred_age_difference_growth = c#2
-
     top = abs(age_difference - (preferred_age_difference*preferred_age_difference_growth*mean_age) )
     h = np.exp(probability_multiplier * top)
-
-    #3) (same as two)
-#    preferred_age_difference = -0.5
-#    probability_multiplier = -0.1
-#    preferred_age_difference_growth = 0.9
-#    age_difference_dispersion = -0.01
-#    top = abs(age_difference - (preferred_age_difference * preferred_age_difference_growth * mean_age) )
-#    bottom = preferred_age_difference * mean_age * age_difference_dispersion
-#    h = np.exp(probability_multiplier * (top/bottom)  )
 
     #make graph
     plt.ion()
@@ -217,12 +199,17 @@ def infection_data(s):
     num_weeks = s.time
     counts = [0]*num_weeks
     agents = s.agents.values()
+    migration = hasattr(s,'migration') and s.migration
     for agent in agents:
-        if agent.time_of_infection >= np.Inf: continue
+        if agent.time_of_infection >= np.Inf: 
+            continue
+        if migration and agent.home != s.rank:
+            continue
         start = int(agent.time_of_infection)
         end = int(min(num_weeks, agent.attributes["TIME_REMOVED"]))
         for t in range(start, end):
             counts[t]+=1.0
+    s.time = num_weeks
     return counts
 
 def population_data(s):
@@ -232,11 +219,17 @@ def population_data(s):
     num_weeks = s.time
     counts = [0]*num_weeks
     agents = s.agents.values()
+    migration = hasattr(s,'migration') and s.migration
+    #print "===population data==="
+    #print "timing", s.timing
     for agent in agents:
+        if migration and agent.home != s.rank:
+            continue
         start = max(0, agent.attributes["TIME_ADDED"])
         end = min(num_weeks,agent.attributes["TIME_REMOVED"])
         for t in range(start, end):
             counts[t]+=1.0
+    s.time = num_weeks
     return counts
 
 def prevalence_data(s):
@@ -280,6 +273,7 @@ def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
     use.
     """
     data = []
+    temp_time = s.time
     now = min(s.time,int(np.ceil(52*s.NUMBER_OF_YEARS))) #determine if we are at the end of the simulation or in the middle
     for t in range(0,now,time_granularity):
         demographic = [0]*num_boxes; #create an list with the number of slots we want
@@ -294,27 +288,16 @@ def demographics_data(s,time_granularity = 4,num_boxes = 7,box_size = 10):
                 continue  # skip if the agent wasn't born yet or has been removed
                 
             if hasattr(s,'migration') and s.migration:
-                #find nearest migration timestamp
-                before_time = -np.inf
-                before = None           
-                for timestamp in agent.attributes["MIGRATION"]:
-                    if timestamp[0] > before_time and timestamp[0] <= t:
-                        before_time = timestamp[0]
-                        before = timestamp
-
-                #if didn't migrate here in most previous timestep
-                if before[2] is not s.rank:
-                    #print "time",t,"before",before,"migration",agent.attributes["MIGRATION"]
+                s.time = t
+                if not s.active(agent):
                     continue
-                
-                    
-
             age_at_t /= 52  # convert back to years
             level = min(num_boxes-1,int(np.floor( age_at_t / box_size)));
             demographic[level] += 1;  # ...and add them to their delineations level
 
         #add the delineations to the data
         data.append(demographic)
+    s.time = temp_time
     return data
 
 def demographics_graph(s,time_granularity = 4,num_boxes = 7,box_size = 10, filename = None):
@@ -606,7 +589,7 @@ def number_of_partners_data(s, year = None):
             relationships[agent]+=1
     
     #post process tallies
-    total = {i:0 for i in range(6)}
+    total = {i:0.001 for i in range(6)}
     positive = {i:0 for i in range(6)}
     for agent in relationships.keys():
         if s.age(agent)<24:

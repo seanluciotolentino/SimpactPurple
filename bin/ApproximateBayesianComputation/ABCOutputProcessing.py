@@ -108,12 +108,13 @@ def make_intergenerational_figure(data, lowerbound, upperbound, rows, title):
 
 #################################################################
 #%% Script starts here!
+plt.close('all')
 np.set_printoptions(precision=2, suppress=True)
-threshold = 250
+threshold = 500
 red_marker_location = 0.15  # for showing survey data
 ylimit = 0.20  # upper y-lim for graphs
 col = 'g'  # color of bars
-save = True  # save to file?
+save = False #True  # save to file?
 
 data = load_data()
 accepted = data[data[:,-1]<=threshold,:]
@@ -125,7 +126,7 @@ parameters = ["Probability Multiplier", "Preferred Age Difference",
               "Duration Scale", "Durations Shape"]
 limits = [(-0.01, -0.3), (-0.01, -0.5), (0.01, 2), 
           (1, 4), (0.05, 0.9),
-          (2, 10), (0, 5)]
+          (15,30), (0, 5)]
 plt.figure(figsize=(12,12))
 plt.suptitle("Posterior Distributions",fontsize=20)
 for i in range(7):
@@ -186,7 +187,7 @@ if save:
 red_marker_location = 0.10  # for showing survey data
 ylimit = 0.12  # upper y-lim for graphs
 
-#non-Intergenerational relationships
+#generational relationships
 survey_data = [98.0,81.4,98.5,72.4]
 lb = [95.8,75.5,95.8,65.5]
 ub = [99.0,86.1,99.4,78.3]
@@ -195,7 +196,7 @@ make_intergenerational_figure(survey_data, lb, ub, rows, "Non-Intergenerational 
 if save:
     plt.savefig('ABCgraphs/noninter_'+col+'.png')
 
-#Non-intergenerational relationships
+#intergenerational relationships
 survey_data = [2.0,18.5,0.7,27.6]
 lb = [1.0,13.7,0.2,21.7]
 ub = [4.2,24.4,2.7,34.5]

@@ -10,7 +10,7 @@ Program for timing the execution time of single SimpactPurple community.
 import time
 import simpactpurple
 
-population_ranges = range(10000,150001,10000)
+population_ranges = range(50000,500001,50000)
 #population_ranges = range(100,501,100)
 #population_ranges = range(10000,30001,5000)
 

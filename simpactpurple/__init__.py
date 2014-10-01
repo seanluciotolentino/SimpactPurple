@@ -41,30 +41,29 @@ class Community():
         self.NUMBER_OF_YEARS = 30
         
         #MODEL OPERATORS
-        #hazard
+        #probabilitiy
         self.PREFERRED_AGE_DIFFERENCE = -0.1
-        self.PROBABILITY_MULTIPLIER = -0.2
+        self.AGE_PROBABILITY_MULTIPLIER = -0.2
         self.PREFERRED_AGE_DIFFERENCE_GROWTH = 0.1
+        self.SB_PROBABILITY_MULTIPLIER = 0
         
         #relationship operator
         self.SEXES = 2
         self.MIN_AGE = 15
         self.MAX_AGE = 65
         self.BIN_SIZE = 5
-        self.DURATIONS = lambda a1, a2: np.mean((self.age(a1),self.age(a2)))*random.exponential(5)
+        self.DURATIONS = lambda a1, a2: 30*random.exponential(1)
         self.RECRUIT_WARM_UP = 20
         self.RECRUIT_INITIAL = 0.02
         self.RECRUIT_RATE = 0.005
         
         #infection operator
         self.INFECTIVITY = 0.01
-        self.INTIIAL_PREVALENCE = 0.01
+        self.INITIAL_PREVALENCE = 0.01
         self.SEED_TIME = 20  # in weeks
 
         #time operator
         self.time = -1
-        self.next_top = -52 * self.MAX_AGE
-        self.next_bottom = -52 * (self.MAX_AGE + self.BIN_SIZE)
         self.grid_queue_index = 0
                 
         #MODEL POPULATION
@@ -72,7 +71,8 @@ class Community():
         self.AGENT_ATTRIBUTES = {}
         self.BORN = lambda: -52*random.uniform(self.MIN_AGE, self.MAX_AGE)
         self.SEX = lambda: random.randint(self.SEXES)
-        self.DNP = lambda: random.power(0.1)*1.5
+        self.DNP = lambda: random.power(0.1)*1.2
+        self.SEXUAL_BEHAVIOR = lambda: random.randint(1,5)
         
     def run(self, timing=False):
         """
@@ -117,15 +117,21 @@ class Community():
         self.pipes = {}  # {gq.index : pipe}
         self.relationships_ending_at = {t:[] for t in range(1+int(self.NUMBER_OF_YEARS*52))}
         self.main_queue = PriorityQueue.PriorityQueue()
+        
+        #turn off warm up for short simulations
+        if int(self.NUMBER_OF_YEARS*52) < self.RECRUIT_WARM_UP:
+            self.RECRUIT_WARM_UP = 0
 
-        #grid queues and operators        
+        #grid queues and operators     
+        self.next_top = -52 * self.MAX_AGE
+        self.next_bottom = -52 * (self.MAX_AGE + self.BIN_SIZE)   
         self.make_queues()
         self.make_operators()  
         
         #initialize population
         self.make_population(self.INITIAL_POPULATION)  # make agents
         self.BORN = lambda: self.time - (52*15.02)  # new born function for replacement
-        self.infection_operator.perform_initial_infections(self.INTIIAL_PREVALENCE, self.SEED_TIME) 
+        self.infection_operator.perform_initial_infections(self.INITIAL_PREVALENCE, self.SEED_TIME) 
     
     def make_queues(self):
         """
@@ -145,22 +151,28 @@ class Community():
             gq = GridQueue.GridQueue(self.next_top, self.next_bottom, self.grid_queue_index)
             gq.max_age = self.MAX_AGE
             gq.sex = i  # not used
-            gq.preferred_age_difference = self.PREFERRED_AGE_DIFFERENCE
-            gq.probability_multiplier = self.PROBABILITY_MULTIPLIER
-            gq.preferred_age_difference_growth = self.PREFERRED_AGE_DIFFERENCE_GROWTH
+            gq.PREFERRED_AGE_DIFFERENCE= self.PREFERRED_AGE_DIFFERENCE
+            gq.AGE_PROBABILITY_MULTIPLIER = self.AGE_PROBABILITY_MULTIPLIER
+            gq.PREFERRED_AGE_DIFFERENCE_GROWTH = self.PREFERRED_AGE_DIFFERENCE_GROWTH
+            gq.SB_PROBABILITY_MULTIPLIER = self.SB_PROBABILITY_MULTIPLIER
+            
             self.grid_queues[gq.index] = gq
             self.grid_queue_index+=1
-                                    
-            #start a new process for it
-            pipe_top, pipe_bottom = multiprocessing.Pipe()
-            p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))
-            p.start()
-            self.pipes[gq.index] = pipe_top
+            self.spawn_process_for(gq)  # start a new process for it
         
         #increment for next grid queue
         self.next_top += self.BIN_SIZE*52
         self.next_bottom += self.BIN_SIZE*52
         
+    def spawn_process_for(self, gq):
+        """
+        Spawns a new process via multiprocessing with communication via a pipe.
+        In a seperate function to accomadate distributed version.
+        """
+        pipe_top, pipe_bottom = multiprocessing.Pipe()
+        p = multiprocessing.Process(target=GridQueue.listen,args=(gq, pipe_bottom))
+        p.start()
+        self.pipes[gq.index] = pipe_top
         
     def make_operators(self):
         """
@@ -186,6 +198,7 @@ class Community():
             a.born = self.BORN()
             a.sex = self.SEX()
             a.dnp = self.DNP()
+            a.sexual_behavior = self.SEXUAL_BEHAVIOR()
             a.name = len(self.agents)  # not i b/c replacement
             self.add_to_simulation(a)
             
@@ -238,9 +251,9 @@ class Community():
         """
         return (self.time - agent.born)/52.0
 
-    def hazard(self, agent1, agent2, **attributes):
+    def probability(self, agent1, agent2, **attributes):
         """
-        Calculates and returns the hazard of relationship formation between
+        Calculates and returns the probability of relationship formation between
         agent1 and agent2. If *age_difference* or *mean_age* is None (i.e.
         not provided), this function will calculate it. 
         """
@@ -254,27 +267,38 @@ class Community():
             age_difference = agent2_age - agent1_age
             
         pad = (1 - (2*agent1.sex))* self.PREFERRED_AGE_DIFFERENCE  # correct for perspective
-        top = abs(age_difference - (pad*self.PREFERRED_AGE_DIFFERENCE_GROWTH*mean_age) )
-        h = np.exp(self.PROBABILITY_MULTIPLIER * top ) ;
-        return (agent1.sex ^ agent2.sex)*h
+        age_abs = abs(age_difference-(pad*self.PREFERRED_AGE_DIFFERENCE_GROWTH*mean_age))
+        age_probability = np.exp(self.AGE_PROBABILITY_MULTIPLIER*age_abs)
+        
+        sb_abs = abs(agent1.sexual_behavior-agent2.sexual_behavior)
+        sb_probability = np.exp(self.SB_PROBABILITY_MULTIPLIER*sb_abs)
+        p = (agent1.sex ^ agent2.sex)*age_probability*sb_probability
+        #print "name",agent1.name,"age", round(self.age(agent1),2),"sex",agent1.sex,"sb",agent1.sexual_behavior,
+        #print "| name",agent2.name,"age", round(self.age(agent2),2),"sex",agent2.sex,"sb",agent2.sexual_behavior,
+        #print "| age_p = ", round(age_probability,2), "sb_p", round(sb_probability,2), "p", round(p,2)
+        return p
 
     def debug(self):
         print "======================", self.time, "======================="
         print "Cumulative num relations:",len(self.relationships)
         print "Point prevalence of relations:",len(self.network.edges())
         print "Grid Queues"
-        print "agents in grid queues = ",sum([ len(gq.my_agents.heap) for gq in self.grid_queues.values()])
+        print "agents in grid queues = ",sum([ len(gq.agents.heap) for gq in self.grid_queues.values()])
             
         print "GQ\t| G Ag Sz|| doubles?\t|| agents"
         print "------------------------------------------"
         for gq in self.grid_queues.values():
             pipe = self.pipes[gq.index]
             pipe.send("queue")
-            agents = pipe.recv()
-            agents = [str(a.name) for p,a in agents.heap]
+            pq = pipe.recv()
+            #agents = [str(a.name) for p,a in agents.heap]
+            agents = []
+            for i in range(len(pq.heap)):
+                a = pq.pop()
+                agents.append(str((a[0], a[1].name)))
             
             line = str(gq.index) + "\t|" + str(gq.sex) + " " + \
-                str(gq.age()) + " " + str(len(agents)) + " || " + \
+                str(round(gq.age(),2)) + " " + str(len(agents)) + " || " + \
                 str(any([a for a in agents if agents.count(a) > 1])) + \
                 "\t|| " + " ".join(agents)
             print line

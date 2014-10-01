@@ -25,6 +25,8 @@ def listen(gq, pipe):
             pipe.send(gq.contains(pipe.recv()))
         elif action == "queue":
             pipe.send(gq.agents)
+        elif action == "size":
+            pipe.send(len(gq.agents))
         elif action == "time":
             gq.time = pipe.recv()
         elif action == "oldest":
@@ -33,7 +35,6 @@ def listen(gq, pipe):
             break
         else:
             raise ValueError, "GridQueue received unknown action:" + action
-
 
 class GridQueue():
     """
@@ -51,7 +52,7 @@ class GridQueue():
         self.previous = None
         self.time = 0
         
-        #additionally hazard variables and max_age (for removal) are set
+        #additionally probability variables and max_age (for removal) are set
     
     def recruit(self):
         """
@@ -68,7 +69,7 @@ class GridQueue():
             self.previous = None
             agents = list(self.agents.heap)  # copy the list
             self.agents.clear()
-            for hazard, agent in agents:
+            for probability, agent in agents:
                 self.agents.push(agent.last_match,agent)
         
         agent = self.agents.pop()[1]
@@ -99,9 +100,9 @@ class GridQueue():
             #flip coins for agents
             agents = list(self.agents.heap)
             self.agents.clear()
-            for old_hazard, agent in agents:  # old_hazard is not needed
-                hazard = self.hazard(agent, suitor, age_difference = ad, mean_age = ma)                
-                if random.random() < hazard:                    
+            for old_probability, agent in agents:  # old_probability is not needed
+                probability = self.probability(agent, suitor, age_difference = ad, mean_age = ma)                
+                if random.random() < probability:                    
                     self.agents.push(agent.last_match,agent)
                 else:
                     self.agents.push(np.inf, agent)
@@ -145,6 +146,7 @@ class GridQueue():
 
         #add with the appropriate priority
         self.names[agent_name] = agent
+        agent.last_match = self.time
         self.agents.push(agent.last_match, agent)
             
     def remove(self, agent_name):
@@ -187,9 +189,9 @@ class GridQueue():
         """
         return (self.time - agent.born)/52      
         
-    def hazard(self, agent1, agent2, **attributes):
+    def probability(self, agent1, agent2, **attributes):
         """
-        Calculates and returns the hazard of relationship formation between
+        Calculates and returns the probability of relationship formation between
         agent1 and agent2. If *age_difference* or *mean_age* is None (i.e.
         not provided), this function will calculate it. 
         """
@@ -197,15 +199,18 @@ class GridQueue():
             age_difference = attributes['age_difference']
             mean_age = attributes['mean_age']
         else:
-            agent1_age = self.grid_queues[agent1.grid_queue].age()
-            agent2_age = self.grid_queues[agent2.grid_queue].age()
-            mean_age = (agent1_age + agent2_age) / 2.0
-            age_difference = agent2_age - agent1_age
+            suitor_age = self.age_of(agent2)
+            mean_age = (suitor_age + self.age()) / 2
+            age_difference = suitor_age - self.age()
             
-        pad = (1 - (2*agent1.sex))* self.preferred_age_difference  # correct for perspective
-        top = abs(age_difference - (pad*self.preferred_age_difference_growth*mean_age) )
-        h = np.exp(self.probability_multiplier * top ) ;
-        return (agent1.sex ^ agent2.sex)*h
+        pad = (1 - (2*agent1.sex))* self.PREFERRED_AGE_DIFFERENCE  # correct for perspective
+        age_abs = abs(age_difference-(pad*self.PREFERRED_AGE_DIFFERENCE_GROWTH*mean_age))
+        age_probability = np.exp(self.AGE_PROBABILITY_MULTIPLIER*age_abs)
+        
+        sb_abs = abs(agent1.sexual_behavior-agent2.sexual_behavior)
+        sb_probability = np.exp(self.SB_PROBABILITY_MULTIPLIER*sb_abs)
+        return (agent1.sex ^ agent2.sex)*age_probability*sb_probability
+
             
     #Functions for debuging
     def agents_in_queue(self):

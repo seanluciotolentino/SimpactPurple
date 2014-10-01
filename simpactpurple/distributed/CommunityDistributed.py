@@ -1,17 +1,53 @@
 import numpy.random as random
 import numpy as np
 import simpactpurple
+import simpactpurple.GridQueue as GridQueue
 import OperatorsDistributed
+import simpactpurple.Operators
 import time as Time
-import multiprocessing
+
+def ServeQueue(master, comm):
+    """
+    An function to waits for queues to serve.
+    """
+    msg = comm.recv(source = master)
+    while not msg == 'done':
+        gq = msg
+        pipe = MPIpe(master, comm)
+        GridQueue.listen(gq, pipe)
+        msg = comm.recv(source = master)
+
+class MPIpe():
+    """
+    A pipe based on the mpi4py module that acts similarly to the 
+    multiprocessing.Pipe. This is done to avoid the os.fork() used by
+    multiprocessing.
+    """
+    def __init__(self, rank, comm):
+        self.rank = rank
+        self.comm = comm
+        
+    def send(self, msg):
+        self.comm.send(msg, dest=self.rank)
+    
+    def recv(self):
+        return self.comm.recv(source=self.rank)
 
 class CommunityDistributed(simpactpurple.Community):
     """
-    The main object for a distributed community simulation."
+    A community that is meant to be used in a distributed setting (to
+    be called with mpirun). 
     """
 
-    def __init__(self, comm, primary, others, migration = False):
+    def __init__(self, comm, primary, others, **migration):
+        """
+        Create a community for a distributed setting that communicates
+        via MPI with *comm*. *primary* is the rank of the primary
+        community to report to. *others* are the other auxilary commuties.
+        *migration* are extra optional parameters for running with migration.
+        """
         simpactpurple.Community.__init__(self)
+        
         #Distributed parameters
         self.comm = comm
         self.rank = comm.Get_rank()
@@ -19,26 +55,124 @@ class CommunityDistributed(simpactpurple.Community):
         self.is_primary = self.rank == primary
         self.others = others
         self.size = len(self.others) + 1
-        self.migration = migration
         self.transition_probabilities = np.ones((self.size,self.size))/self.size
+        self.name_count = 0
+        self.MAX_AGE = 40  # dictated by number of slots on helium -- 16
         
-        #print "hello from rank",self.rank, "my primary is", self.primary
-        #all other parameters inherited
-		
-	def start(self):
+        #migration variables
+        if len(migration)>0:
+            self.migration = True
+            self.other_primaries = migration['other_primaries']
+            self.timing = migration['timing']
+            self.gravity = migration['gravity']
+            self.probabilities = self.gravity / np.sum(self.gravity, axis=0)
+            self.transition = np.cumsum(self.probabilities, axis=0)
+        else:
+            self.migration = False
+        
+        #queue ranks
+        slots_per_node = 16  # 16 on neon, 12 on helium
+        total_communities = self.comm.Get_size()/slots_per_node
+        self.grid_queue_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
+        
+    def spawn_process_for(self, gq):
         """
-        Initialize the transition matrix based on transition probabilities.
+        Spawns a new process via MPI ranks with communication via an MPIpe.
+        In a seperate function to accomadate distributed version.
         """
-        self.transition = np.cumsum(self.transition_probabilities, axis=0)
-        simpactpurple.Community.start(self)
-    
-    def broadcast(self, message):
+        gqrank = self.grid_queue_ranks.pop()
+        self.comm.send(gq, dest = gqrank)
+        pipe = MPIpe(gqrank, self.comm)
+        self.pipes[gq.index] = pipe
+                
+    def make_operators(self):
         """
-        A function which sends message to all nodes. This is necessary b/c
-        comm.bcast has buggy performance.
-        """        
-        for other in self.others:
-            self.comm.send(message, dest = other)
+        Make the distributed operators necessary for a distributed simulation.
+        """
+        self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
+        self.infection_operator = OperatorsDistributed.InfectionOperator(self)
+        self.time_operator = OperatorsDistributed.TimeOperator(self)
+        
+    def make_population(self, size):
+        """
+        Same as original, except non-primary communities listen for added
+        agents instead of making agents themselves.
+        """
+        if self.is_primary:
+            simpactpurple.Community.make_population(self, size)
+            if self.time < 0:
+                if self.migration:
+                    for p in self.other_primaries:
+                        self.comm.send(('done','sending migrants'), dest = p)
+                    for p in self.other_primaries:
+                        self.listen('migrating agents',p)
+                self.broadcast(('done','making population'))
+        else:
+            self.listen('initial population', self.primary)
+
+    def add_to_simulation(self, agent):
+        """
+        Save the agent's name for future reference, add to network, assign
+        a location, and add to grid queue.
+        """
+        #add primary community number as prefix to agent's name (for migration)
+        if type(agent.name) == type(0):
+            agent.primary = self.primary
+            agent.name = str(self.primary) + "-" + str(self.name_count)
+            self.name_count+=1
+        
+        #save agent
+        self.agents[agent.name] = agent
+        self.network.add_node(agent)
+        
+        #assign a grid queue and partition
+        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
+        agent.grid_queue = grid_queue.index
+        partitions = list(self.others)
+        partitions.append(self.primary)  # only primary calls this so same as self.rank
+        agent.partition = partitions[random.randint(len(partitions))]
+        
+        # add agent to simulation
+        if self.migration and not hasattr(agent, 'away'):
+            self.add_migration(agent)
+        if agent.partition is not self.rank:
+            self.comm.send(('add_to_simulation',agent), dest = agent.partition)
+        self.add_to_grid_queue(agent)
+        
+    def add_to_grid_queue(self, agent):
+        """
+        Find the appropriate grid queue for agent. Called by 
+           1. Time Operator - when relationship with removed is dissolved
+           2. Relationship Operator - a relationship is dissolved
+           3. Community - in make_population in the mainloop
+        """
+        #check that agent in community boundaries
+        if agent.partition is not self.rank:
+            self.comm.send(('add_to_grid_queue',agent.name), dest = agent.partition)  # send to other community
+        else:
+            self.pipes[agent.grid_queue].send("add")
+            self.pipes[agent.grid_queue].send(agent)
+            
+    def add_migration(self, agent):
+        agent.home = self.rank
+        if agent.sex == 1:
+            agent.away = agent.home
+        else:
+            agent.away = [int(v) for v in np.random.random() < self.transition[:,self.rank]].index(1)
+            
+        if agent.home != agent.away:
+            self.comm.send(('add_migration',agent), dest=agent.away)
+            
+    def active(self, agent):
+        #check active/inactive status for migration
+        if not self.migration or agent.home == agent.away:
+            return True
+        home_time = self.timing[agent.home,agent.home]
+        away_time = self.timing[agent.away,agent.home]
+        if self.rank == agent.home:
+            return self.time%(home_time+away_time) <= home_time
+        else: #agent is away
+            return self.time%(home_time+away_time) > home_time
             
     def update_recruiting(self, rate):
         """
@@ -64,67 +198,16 @@ class CommunityDistributed(simpactpurple.Community):
         else:
             #listen for recruit number
             msg, data = self.comm.recv(source = self.primary)
-            self.recruit = data
-    
-    def make_population(self, size):
+            self.recruit = data            
+        
+    def broadcast(self, message):
         """
-        Same as original, except non-primary communities listen for added
-        agents instead of making agents themselves.
-        """
-        if self.is_primary:
-            simpactpurple.Community.make_population(self, size)
-            if self.time < 0:
-                self.broadcast(('done','making population')) 
-                if self.migration:
-                    self.comm.send(('done','making population'), dest = 0)
-        else:
-            self.listen('initial population', self.primary)
-
-    def add_to_simulation(self, agent):
-        """
-        Save the agent's name for future reference, add to network, assign
-        a location, and add to grid queue.
-        """
-        #add primary community number as prefix to agent's name (for migration)
-        if type(agent.name) == type(0):
-            agent.name = str(self.primary) + "-" + str(agent.name)
-        
-        #save agent
-        self.agents[agent.name] = agent
-        self.network.add_node(agent)
-        
-        #assign a grid queue
-        grid_queue = [gq for gq in self.grid_queues.values() if gq.accepts(agent)][agent.sex]
-        agent.grid_queue = grid_queue.index
-        
-        #assign a partition
-        partitions = list(self.others)
-        partitions.append(self.primary)  # only primary calls this so same as self.rank
-        agent.partition = partitions[random.randint(len(partitions))]
-        if agent.partition is not self.rank:
-            self.comm.send(('add_to_simulation',agent), dest = agent.partition)
-        self.add_to_grid_queue(agent)        
-        
-        if self.migration:  # and not an update add
-            agent.attributes["MIGRATION"] = [(self.time, 0, self.rank)]
-            self.comm.send(('add',agent), dest = 0)
-        
-        
-    def add_to_grid_queue(self, agent):
-        """
-        Find the appropriate grid queue for agent. Called by 
-           1. Time Operator - when agent graduates to the next grid queue
-           1.5 Time Operator - when relationship with removed is dissolved
-           2. Relationship Operator - a relationship is dissolved
-           3. Community - in make_population in the mainloop
-        """
-        #check that agent in community boundaries
-        if agent.partition is not self.rank:
-            self.comm.send(('add_to_grid_queue',agent.name), dest = agent.partition)  # send to other community
-        else:
-            self.pipes[agent.grid_queue].send("add")
-            self.pipes[agent.grid_queue].send(agent)
-        
+        A function which sends message to all nodes. This is necessary b/c
+        comm.bcast has buggy performance.
+        """        
+        for other in self.others:
+            self.comm.send(message, dest = other)
+            
     def listen_all(self, for_what):
         """
         Method for receiving messages from all other communities.
@@ -139,10 +222,8 @@ class CommunityDistributed(simpactpurple.Community):
         """
         #print "v=== listen for",for_what,"| FROM",from_whom,"ON",self.rank,"|time",self.time,"===v"
         msg, data = self.comm.recv(source = from_whom)  # data depends on msg
-        while True:
+        while msg != 'done':
             #print "  > listening on",self.rank,"| msg:",msg,"data:",data
-            if msg == 'done':
-                break
             
             #parse message and act            
             if msg == 'add_to_simulation': # primary to non-primary
@@ -151,6 +232,13 @@ class CommunityDistributed(simpactpurple.Community):
             elif msg == 'add_to_grid_queue': # primary to non-primary
                 agent = self.agents[data]
                 self.add_to_grid_queue(agent)
+            elif msg == 'add_migration':
+                agent = data
+                self.add_to_simulation(agent)
+            elif msg == 'infection':
+                agent = self.agents[data]
+                agent.time_of_infection = max((self.SEED_TIME, self.time))
+                self.infection_operator.infected_agents.append(agent)
             elif msg == 'remove_from_simulation': #non-primary to primary
                 agent_name = data
                 agent = self.agents[agent_name]
@@ -171,59 +259,23 @@ class CommunityDistributed(simpactpurple.Community):
                 agent = data  # data is agent object here
                 self.main_queue.push(agent.grid_queue, agent)
             else:
-                raise Exception,"Unknown msg received: " + msg
+                raise Exception,"Unknown msg received: " + msg + " data: " + str(data)
             
             msg, data = self.comm.recv(source = from_whom)  # listen for next message
         #print "^=== listen for",for_what,"| END on",self.rank,"|time",self.time,"======^" 
         #print
 
-    def step(self):
+    def run(self, timing=False):
         """
-        Take a single time step (one week) in the simulation. 
+        In addition to default run, send a 'done' message to
+        QueueServers.
         """
-        #1. Proceede normally
-        simpactpurple.Community.step(self)
+        simpactpurple.Community.run(self)
+        
+        #send "done" to all grid queue ranks
+        slots_per_node = 16  # 16 on neon, 12 on helium
+        total_communities = self.comm.Get_size()/slots_per_node
+        grid_queue_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
+        for r in grid_queue_ranks:
+            self.comm.send('done', dest = r)
             
-        #2. Migration operations
-        if not self.migration:
-            return
-
-        if self.is_primary:
-            self.comm.send(('done','updating'), dest = 0)
-            #print '-----primary',self.rank,'migration operations-----'
-            self.migration = False  # temp disable 'add' and 'remove' messages to MO
-            #0.1 Remove some agents (migrate away)
-            removals = self.comm.recv(source = 0)
-            #print self.rank,"  received removals:",[a.name for a in removals]
-            for removed in removals:
-                agent = self.agents[removed.name]
-                #send remove to grid queue in addition to time op remove
-                if agent.partition is not self.rank:
-                    self.comm.send(('remove_from_grid_queue',agent.name), dest = agent.partition)
-                else:
-                    self.pipes[agent.grid_queue].send("remove")
-                    self.pipes[agent.grid_queue].send(agent.name)
-                self.time_operator.remove(agent)
-                
-            #0.2 Add some agents (migrate in)
-            additions = self.comm.recv(source = 0)
-            #print self.rank,"  received additions:",[a.name for a in additions]
-            for agent in additions:
-                self.add_to_simulation(agent)
-                #print "    -",agent.name,"in network:",agent in self.network
-            self.migration = True
-                        
-            
-            #0.3 finish
-            self.broadcast(('done','migration updating'))
-            #print '-----end migration operations----------'
-        else:
-            self.listen('migration updates', self.primary)
-            
-    def make_operators(self):
-        """
-        Make the distributed operators necessary for a distributed simulation.
-        """
-        self.relationship_operator = OperatorsDistributed.RelationshipOperator(self)
-        self.infection_operator = OperatorsDistributed.InfectionOperator(self)
-        self.time_operator = OperatorsDistributed.TimeOperator(self)
