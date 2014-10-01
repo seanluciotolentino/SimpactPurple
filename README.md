@@ -7,9 +7,4 @@ known as *Simpact*. It is a useful tool for public health officials and
 epidemiologists which implements a parallelized algorithm based on queue 
 theory. 
 
-Documentation for how the program works and how to use it can be found in
-
-SimpactPurple/docs/build/html/index.html.
-
-Note that for Windows users there is a shortcut to the documentation in 
-the home directory. 
+You can find documentation on how to install and use the program [here] (http://pythonhosted.org/SimpactPurple/).
