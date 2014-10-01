@@ -235,7 +235,6 @@ class InfectionOperator(Operators.InfectionOperator):
     def __init__(self, master):
         self.master = master
         self.infected_agents = []
-        self.initial_infected = []  # DEBUG
 
     def step(self):
         """
