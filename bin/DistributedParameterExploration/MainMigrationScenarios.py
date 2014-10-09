@@ -74,7 +74,7 @@ rank = comm.Get_rank()
 #simulation setup parameters
 years = 30.1
 num_runs = 100
-num_primaries = np.min(9,comm.Get_size()/16)
+num_primaries = np.min((9,comm.Get_size()/16))
 num_communities = comm.Get_size()/16
 fraction = 1.0 / 100
 seed_prevalence = 0.01
