@@ -78,19 +78,6 @@ prior = {
 }
 posterior = {i:[] for i in prior.keys()}
     
-##file to write
-##rows 0-7
-#print "#,ProbMult, PAD, PADgrowth, DNPscale, DNPshape, DURAscale, DURAshape,"  # parameters
-##rows 8-11, 12-15    
-#print "NonInterMale05,InterMale05,NonInterFemale05,InterFemale05,"  # intergernational sex 2005
-#print "NonInterMale08,InterMale08,NonInterFemale08,InterFemale08,"  # intergernational sex 2008
-##rows 16-21,22-27,28-33
-#print "MP15-24Male02,MP15-24Female02,MP25-49Male02,MP25-49Female02,MP50+Male02,MP50+Female02,"  # multiple partners 02
-#print "MP15-24Male05,MP15-24Female05,MP25-49Male05,MP25-49Female05,MP50+Male05,MP50+Female05,"  # multiple partners 05
-#print "MP15-24Male08,MP15-24Female08,MP25-49Male08,MP25-49Female08,MP50+Male08,MP50+Female08,"  # multiple partners 08
-#
-#print "distance\n")
-    
 #%% 1. Run ABC algorithm
 n = 1000
 for i in range(n):
@@ -99,7 +86,7 @@ for i in range(n):
         #print "---Sample", i,"---"
         s = CommunityDistributed.CommunityDistributed(comm, 0, [])
         # set constants
-        s.INITIAL_POPULATION = 10000  # scale this up later?
+        s.INITIAL_POPULATION = 10000
         s.NUMBER_OF_YEARS = 30
         
         # set parameters
@@ -134,5 +121,4 @@ for i in range(n):
         
         print str(distance(s))
     else: # rank != 0
-        master = rank%(comm.Get_size()/16)
-        CommunityDistributed.ServeQueue(master, comm)    
+        CommunityDistributed.ServeQueue(0, comm)    
