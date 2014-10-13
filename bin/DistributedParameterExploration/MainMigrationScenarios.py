@@ -56,7 +56,7 @@ def run():
             print migration_amount,timing_scale, seed_scenario,
             print " ".join(map(lambda p: " ".join(map(str,p)),prev)),
             print round(time.time() - start, 3),
-            print " ".join(map(lambda p: " ".join(map(str,p)),init_prev))
+            print " ".join(map(str,init_prev))
         else:
             comm.send([round(p,3) for p in gad.prevalence_data(s)[::52*5]], dest = 0)
     elif rank < num_communities:

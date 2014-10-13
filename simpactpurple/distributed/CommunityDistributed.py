@@ -73,6 +73,7 @@ class CommunityDistributed(simpactpurple.Community):
         #queue ranks
         slots_per_node = 16  # 16 on neon, 12 on helium
         total_communities = self.comm.Get_size()/slots_per_node
+        self.listening_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
         self.grid_queue_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
         
     def spawn_process_for(self, gq):
@@ -273,9 +274,6 @@ class CommunityDistributed(simpactpurple.Community):
         simpactpurple.Community.run(self)
         
         #send "done" to all grid queue ranks
-        slots_per_node = 16  # 16 on neon, 12 on helium
-        total_communities = self.comm.Get_size()/slots_per_node
-        grid_queue_ranks = range(self.rank+total_communities, self.comm.Get_size(), total_communities)
-        for r in grid_queue_ranks:
+        for r in self.listening_ranks:
             self.comm.send('done', dest = r)
             

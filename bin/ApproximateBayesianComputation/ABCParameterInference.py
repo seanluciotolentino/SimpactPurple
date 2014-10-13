@@ -85,6 +85,8 @@ for i in range(n):
         #1.1 Sample and set parameters from prior distribution
         #print "---Sample", i,"---"
         s = CommunityDistributed.CommunityDistributed(comm, 0, [])
+        s.MAX_AGE = 65
+        s.grid_queue_ranks = range(1,comm.Get_size())
         # set constants
         s.INITIAL_POPULATION = 10000
         s.NUMBER_OF_YEARS = 30
