@@ -49,10 +49,11 @@ if __name__ == '__main__':
                 s.INFECTIVITY = 0.1
                 s.NUMBER_OF_YEARS = 30
                 s.run()
-                print round(time.time()-start,2)
+                print round(time.time()-start,2),
                 
                 #graph it
                 prev.append(gad.prevalence_data(s)*100)
+                print prev[-1]
                 plt.plot(np.arange(0,s.time)/52.0, prev[-1], c = colors[i])
                 plt.ylim(0,100)
             plt.plot(np.arange(0,s.time)/52.0,np.average(prev, axis=0), c= 'k')
