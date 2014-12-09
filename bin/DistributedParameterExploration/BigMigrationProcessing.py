@@ -48,3 +48,4 @@ for i in range(3):
         plt.xlim((0,40))
         if community == 3:
             plt.legend(['actual','0.1', '0.5', '0.75', '1.0', '2.0'])
+plt.savefig('9_province_prevalence.png', dpi = 150)

@@ -24,9 +24,10 @@ plt.figure()
 noise = 0.0 # set a default
 
 #which data?
-scenario = 1
+scenario = 0
 if scenario == 0:
-    data = np.loadtxt('SmallMigration.out', delimiter=" ")
+    col = lambda x: [['b','g'][x==0.5],['y','r'][x==2.0]][x>0.5]
+    data = np.loadtxt('SmallMigration4.out', delimiter=" ")
     title = "Migration"
     noise = 0.1
 elif scenario == 1:
@@ -38,16 +39,18 @@ elif scenario == 2:
     noise = 0.2
 
 #make plots
-thirty_prevalence = data[:,9:-1:7]  # indicies of 30-year prevalence in the data
+#thirty_prevalence = data[:,9:-1:7]  # indicies of 30-year prevalence in the data
+thirty_prevalence = data[:,7::7]  # indicies of 30-year prevalence in the data
 fifteen_prevalence = data[:,6:-1:7]
 for i in range(3):
     plt.subplot(1,3,i+1)
-    plt.suptitle('Prevalence under Different {0} Scenarios'.format(title), fontsize=14)
+    #plt.suptitle('Prevalence under Different {0} Scenarios'.format(title), fontsize=14)
     plt.scatter(data[:,scenario]+np.random.uniform(-noise, noise,
                 size=np.size(data[:,scenario])),
                 thirty_prevalence[:,i], 
                 #c = data[:,scenario],
-                c = data[:,0], # color by migration
+                c = map(col, data[:,0]),
+                #c = data[:,0], # color by migration
                 #c = fifteen_prevalence[:,i],
                 linewidth=0)
         
@@ -55,5 +58,5 @@ for i in range(3):
     if i == 0:
         plt.ylabel('30-year Prevalence')
     plt.xlabel('{0} Value'.format(title))
-    plt.ylim((0.0, 0.3))
+    #plt.ylim((0.0, 0.3))
     

@@ -148,7 +148,7 @@ class ModifiedCommunity(simpactpurple.Community):
         simpactpurple.Community.make_operators(self)
         if self.scenario == 1:
             self.relationship_operator = ModifiedRelationshipOperator(self)
-    
+
     def step(self):
         #self.debug()
         simpactpurple.Community.step(self)
@@ -166,32 +166,12 @@ if __name__ == '__main__':
         s = ModifiedCommunity()
         s.INITIAL_POPULATION = 1000
         s.PREFERRED_AGE_DIFFERENCE_GROWTH = 0.5
-        s.BORN = lambda: -52*np.min((64,15.2+random.exponential(0.9)*12))
+        #s.BORN = lambda: -52*np.min((64,15.2+random.exponential(0.9)*12))
         s.DNP = lambda: random.power(0.7)*2.5
         s.AGE_PROBABILITY_MULTIPLIER = -0.4
         s.RECRUIT_RATE = 0.01
         s.scenario = scenario
         s.run()
         
-        #write it all to a file
-        #f = open("Sensitivity{0}.csv".format(resort),'a')
-        #f.write(str(i) + ",")
-        #f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS)))+",")  # 2008
-        #f.write(",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS)))+",")  # 2008
-        #f.write("\n")
-        #f.close()
-        
         print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.intergenerational_sex_data(s, year = s.NUMBER_OF_YEARS)))+",",
         print ",".join(map(lambda x: str(round(100*x,1)), GraphsAndData.number_of_partners_data(s, year = s.NUMBER_OF_YEARS)))+","
-
-def visualize_age_distribution():
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import numpy.random as random
-    
-    distribution = lambda: np.min((64,15.2+random.exponential(0.9)*12))
-    plt.hist([distribution() for i in range(1000)],bins=range(15,70,5),normed=True)
-    plt.title("Age Distribution")
-    plt.xlabel("Age")
-    plt.xlim([15,65])
-    plt.ylabel("Frequency")
