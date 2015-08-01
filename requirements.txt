@@ -1,0 +1,7 @@
+conda==3.13.0
+conda-build==1.11.0
+conda-env==2.2.1
+matplotlib==1.4.3
+networkx==1.9.1
+numpy==1.9.2
+Sphinx==1.2.3

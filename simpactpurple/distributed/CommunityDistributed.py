@@ -43,7 +43,7 @@ class CommunityDistributed(simpactpurple.Community):
         """
         Create a community for a distributed setting that communicates
         via MPI with *comm*. *primary* is the rank of the primary
-        community to report to. *others* are the other auxilary commuties.
+        community to report to. *others* are the other auxilary communities.
         *migration* are extra optional parameters for running with migration.
         """
         simpactpurple.Community.__init__(self)

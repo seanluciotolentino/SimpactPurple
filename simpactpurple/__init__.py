@@ -84,12 +84,12 @@ class Community():
         self.start()  # initialize data structures
         
         #mainloop
-        self.update_recruiting(self.RECRUIT_INITIAL)
+        self.update_recruiting(self.RECRUIT_INITIAL)  # initially have high recruitment
         for t in range(self.RECRUIT_WARM_UP):
             self.time = t
             self.step()
         
-        self.update_recruiting(self.RECRUIT_RATE)
+        self.update_recruiting(self.RECRUIT_RATE)  # change to "normal" level of recruitment
         for t in range(self.RECRUIT_WARM_UP, int(self.NUMBER_OF_YEARS*52)):
             self.time = t
             self.step()
